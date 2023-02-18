@@ -421,7 +421,7 @@ prop_diff(tidy_df$PORTE, tidy_df$TEMPO_DE_PERMANENCIA, function(x)x>9)
 ### Faixa etária
 
 ```{r}
-prop_diff(PORTE, TEMPO_DE_PERMANENCIA, function(x)x>12)
+prop_diff(tidy_df$PORTE, tidy_df$TEMPO_DE_PERMANENCIA, function(x)x>12)
 ```
 
 ## Valor dos itens e procedimentos VS variáveis categóricas
