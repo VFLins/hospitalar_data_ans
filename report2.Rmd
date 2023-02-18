@@ -1,0 +1,433 @@
+---
+title: "Análise dos dados da PDA TISS 2019"
+author: "Vitor Ferreira Lins"
+date: "`r paste('Atualizado no dia', format(Sys.Date(), '%d de %B de %Y'))`"
+output: 
+  html_document:
+    css: "style.css"
+    toc: true
+    number_sections: true
+    toc_float:
+      collapsed: false
+    theme: flatly
+    fig_width: 7
+    fig_height: 4
+---
+
+```{r setup}
+knitr::opts_chunk$set(echo=TRUE)
+
+source("functions.R")
+source("texts.R")
+
+options(outDec=",",big.mark=".")
+```
+
+```{r packages, include=FALSE}
+library(plotly)
+library(flextable)
+library(tidyverse)
+set_flextable_defaults(scroll=list())
+```
+
+# Introdução
+
+A **Agência Nacional de Saúde Suplementar (ANS)** é responsável por regular os planos de saúde no Brasil. Esta agência iniciou o **Plano de Dados abertos (PDA)**, que consiste em solicitar dados para divulgação pública com diversos propósitos, desde o acesso à informação por parte do público como também para ajudar na regulação por parte do próprio órgão.
+
+O PDA possui dados para internações e procedimentos hospitalares e ambulatoriais, mas nesta análise serão tratados apenas os dados de origem hospitalar. A análise realizada aqui é feita a partir de um recorte aleatório de dados do **Padrão para Troca de Informação de Saúde Suplementar (TISS)** para todos os estados do Brasil, mas apenas ao longo do ano de 2019. Nesta análise será observado o comportamento geral de todas as variáveis, além da extração de algum possível valor de negócio nestas informações.
+
+Aqui serão considerados *"Atendimento"*, a junção de todos os *procedimentos* realizados no paciente (Ex.: exames, consultas, internações, remédios, etc.), desde a entrada até sua alta. Foram coletados os dados da tabela **Consolidada**, onde cada observação (linhas) corresponde a um atendimento, e da tabela **Detalhada**, onde as observações correspondem a cada um dos diferentes procedimentos adotados em cada atendimento hospitalar.
+
+Como a tabela **Detalhada** apresenta múltiplas observações para cada atendimento
+
+Estas duas tabelas foram unidas em apenas uma chamada **Unificada**, que repete as observações da tabela **Consolidada** ao longo de suas respectivas ocorrências na tabela **Detalhada**. Além disso, uma nova tabela foi criada aqui para análise, que será chamada de **Agregada**, que agrega a tabela unificada por ocorrência de atendimento.
+
+```{r datasets}
+# tabela unificada
+df <- readRDS("pda_tiss_hosp_mini.rds")
+
+# dados com variaveis numericas de interesse agregadas por ocorrencia
+aggnum_df <- df[,c(id_var, numeric_vars)] %>% 
+	group_by(ID_EVENTO_ATENCAO_SAUDE) %>% 
+	summarise(
+		VL_TOTAL_ITENS_INFORMADOS=sum(QT_ITEM_EVENTO_INFORMADO*VL_ITEM_EVENTO_INFORMADO),
+		VL_ITEM_PAGO_FORNECEDOR=sum(VL_ITEM_PAGO_FORNECEDOR),
+		TEMPO_DE_PERMANENCIA=max(TEMPO_DE_PERMANENCIA))
+
+# dados com variaveis categoricas de interesse agregadas por ocorrencia
+aggcat_df <-  df[,c(id_var, categorical_vars)] %>% 
+	group_by(ID_EVENTO_ATENCAO_SAUDE) %>%
+	summarise_at(categorical_vars, max) %>%
+	mutate(ANO_MES_EVENTO=zoo::as.yearmon(ANO_MES_EVENTO))
+
+# tabela agregada
+agg_df <- inner_join(aggcat_df, aggnum_df, by="ID_EVENTO_ATENCAO_SAUDE")
+
+# dados para treinamento de modelo
+tdf <- slice_sample(agg_df, prop=0.8)
+# dados para avaliação de modelo
+adf <- agg_df[!{agg_df$ID_EVENTO_ATENCAO_SAUDE %in% tdf$ID_EVENTO_ATENCAO_SAUDE},]
+```
+
+------------------------------------------------------------------------
+
+# Entendendo as variáveis
+
+A primeira característica importante desta análise é a de que vamos focar na "independência" das variáveis. Muitos dados aqui dependem de referências externas, principalmente de dados de tabelas de classificação da [Terminologia Unificada da Saúde Suplementar](https://dados.gov.br/dados/conjuntos-dados/terminologia-unificada-da-saude-suplementar-tuss), e podem ajudar a fazer previsões ou recortes nos dados para determinadas características de atenção, como regime e causa do atendimento. Usando apenas os dados presentes aqui, muitas das possíveis soluções ficam inacessíveis, e portanto estas variáveis serão deixadas de lado.
+
+## Variáveis numéricas
+
+Dentre as variáveis numéricas de maior interesse de negócio podem se incluir:
+
+-   Valores e quantidades de procedimentos/itens assistenciais;
+-   Valor pago ao fornecedor;
+-   Tempo de permanência no atendimento.
+
+Embora com valores numéricos, a maioria das variáveis encontradas na tabela abaixo não são ordinais nem cardinais, ou seja, não podem ser comparadas pelo valor numérico ($a>b$ não se aplica) nem são passíveis de operações aritméticas (não se pode dizer que $a \times b$ será igual a $ab$) respectivamente.
+
+As variáveis marcadas em negrito são as únicas em que estas propriedades mencionadas se aplicam, além de serem as mais indicadas de possuir valor de negócio independentemente. Abaixo, um resumo sobre todas as variáveis numéricas neste conjunto de dados:
+
+```{r ListaVariaveisNumericas}
+temp <- ifelse({names(num_vars1) %in% det_vars}, "Detalhada", "Consolidada")
+temp[1] <- "Unificada"
+temp[21] <- "Agregada"
+data.frame(Nome=names(num_vars1), Descrição=num_vars1, Tabela=temp) %>%
+	out_table() %>% bold(i=c(2, 4:6, 21))
+```
+
+## Variáveis categóricas
+
+Já entre as variáveis categóricas, muitas variáveis ainda podem ser aproveitadas, as variáveis de maior interesse são:
+
+-   Estado;
+-   Data;
+-   Faixa etária e sexo do beneficiário;
+-   Porte e modalidade da operadora de saúde.
+
+As demais variáveis são códigos de referências que deve ser obtidas em tabelas externas para trazer valor de negócio.
+
+```{r ListaVariaveisCategoricas}
+temp <- ifelse({names(cat_vars1) %in% det_vars}, "Detalhada", "Consolidada")
+data.frame(Nome=names(cat_vars1), Descrição=cat_vars1, Tabela=temp) %>%
+	out_table() %>% bold(i=c(2:3, 5:8))
+```
+
+------------------------------------------------------------------------
+
+# Observando de perto
+
+Aqui, vamos ter uma noção um pouco melhor de como os dados se distribuem na amostra, as informações obtidas aqui serão úteis mais adiante na análise.
+
+## Categóricas {#categóricas}
+
+As variáveis categóricas podem oferecer algumas informações interessantes sobre as os dados que temos por aqui. Será bom lembrar que as quantidades observadas para cada valor destas variáveis está reduzida, mas por se tratar de uma amostra aleatória, as proporções devem se manter iguais ou muito próximas.
+
+(Passe o mouse ou encoste o dedo para visualizar os valores)
+
+```{r CatVarsGraph}
+temp <- aggcat_df %>% 
+	mutate_all(order_factor) %>% 
+	pivot_longer(cols=-ID_EVENTO_ATENCAO_SAUDE, values_to="Valor")
+p <- ggplot(temp, aes(Valor)) + 
+	geom_bar(fill=cores[6]) + coord_flip() +
+	facet_wrap(.~name, scales="free", ncol=2) + 
+	labs(y=NULL, x=NULL, title="Frequência das variáveis categóricas selcionadas") + 
+	my_ggtheme() + theme(axis.text.y=element_blank())
+ggplotly(p, height=1000)
+```
+
+As informações que obtemos são:
+
+-   As pessoas parecem procurar mais atendimento ao longo do terceiro trimestre do ano, e menos nos últimos e primeiros meses do ano, com exceção de janeiro;
+-   As pessoas procuram mais atendimento hospitalar a partir da idade adulta, mas surpreendentemente a faixa de "30 a 39 anos" procura bem mais que as outras, inclusive as faixas etárias mais altas;
+-   A maioria das pessoas é atendida por Cooperativas médicas e por empresas de grande porte, mas não necessariamente nas duas modalidades simultaneamente;
+-   A maior parte dos pacientes é do sexo feminino;
+-   Os 3 principais estados em quantidade de atendimentos são: São Paulo, Rio de Janeiro e Minas Gerais; Enquanto que os 3 menores são: Roraima, Acre e Amapá.
+
+Ao observar estas distribuições, algumas dúvidas surgiram:
+
+1.  Como as a modalidade da operadora se relaciona com seu porte?
+2.  Como seriam as distribuições de faixa etária para cada sexo?
+3.  As faixas etárias têm alguma relação com a modalidade?
+
+Estas dúvidas serão sanadas mais adiante em um tópico dedicado.
+
+## Numéricas {#numéricas}
+
+Antes de qualquer coisa, é sempre bom observar as estatísticas de tendência central e de dispersão dos dados, através dela será possível chegar a algumas conclusões importantes:
+
+```{r NumVarsStatsTable}
+temp <- na.omit(aggnum_df)
+summary_num(aggnum_df, agg_numeric_vars)
+```
+
+Depois de ver estas estatísticas, além de distribuições muito assimétricas e dispersas, é possível notar a presença de *outliers*, que são valores anômalos que podem dificultar a nossa vida quando tentamos treinar modelos preditivos, ou simplesmente quando estamos tentando observar os dados.
+
+Além dos outliers, em todas as variáveis numéricas, aproximadamente `r ncent(sum(is.na(aggnum_df[,2])), nrow(aggnum_df), decimals=4)` das observações não possuem nenhum valor definido, nesta seção, todas as análises serão feitas desconsiderando as mesmas, o que nos deixa com `r nrow(na.omit(aggnum_df))` observações analisáveis em todas as variáveis.
+
+Para encontrar os outliers será usada a técnica da Faixa Interquartil (FIQ, ou IQR na sigla em inglês), que é definido por $IQR=Q_3-Q_1$, neste caso, $Q_1$ e $Q_3$ são o primeiro e o terceiro quartis, respectivamente. Este valor será usado para estabelecer um limite de valor mínimo aceitável na amostra, definido por $L_{min}=Q_1-(1,5 \times IQR)$; e um limite de valor máximo, definido por $L_{max}=Q_3+(1,5 \times IQR)$.
+
+### Valor dos procedimentos
+
+A variável "VL_TOTAL_ITENS_INFORMADOS" indica o valor total do atendimento observado. Ao retirar os *outliers*, tornou-se possível visualizar os dados, mas mesmo assim, é observada uma distribuição muito irregular nos dados. Para resolver este problema muitas vezes se adota uma transformação nos dados, e neste caso foi utilizado o [logaritimo natural (ou logaritmo neperiano)](https://pt.wikipedia.org/wiki/Logaritmo_natural) que é uma transformação interpretável e reversível, isto significa que ainda é possível interpretar seus resultados num modelo preditivo e que esta transformação pode ser desfeita sem perder a informação original.
+
+A única desvantagem desta transformação é a necessidade de que todos os valores sejam maiores que zero, mas como a informação desta variável trata de um valor pago em reais, é esperado que a maior parte dos valores relevantes cumpram esta condição, com exceção dos valores zero. Para contornar este problema, uma outra transformação mais simples deverá ser feita para retirar os valores zero sem perder sua informação.
+
+```{r IQR--VL_TOTAL_ITENS_INFORMADOS}
+a <- temp$VL_TOTAL_ITENS_INFORMADOS
+# série transformada: todas as observações em seu logarítmo natural
+b <- tibble(log.val=log(a+1))
+# série original: apagando os outliers
+a <- tibble(val=IQRsel(a))
+```
+
+A série original $a$ contou apenas com a remoção de dados *outiliers* com valor muito alto, pois nenhuma observação se encontrava abaixo do limite mínimo de `r as.integer( quantile(a$val, 1/4, names=F)-(1.5*IQR(a$val)) )`, já que o valor mínimo é `r min(a)`, este procedimento retirou `r ncent(nrow(a), nrow(temp), F)` das observações.
+
+Já na série transformada $b$, cada observação $b_i$ sofreu a transformação de acordo com seu respectivo par $a_i$ na série original pela fórmula $b_i=ln((a_i+1))$. Foi adotado a soma $a_i+1$ nos valores antes de tirar o logaritmo natural por causa da presença de zeros no conjunto de dados, o número $1$ foi adotado por que $ln(1)=0$, logo os valores zero da distribuição original continuam valendo 0 após a transformação, enquanto as demais informações recebem seu respectivo valor exclusivo. Não foi necessário fazer nenhuma remoção de outliers após a transformação dos dados.
+
+```{r plot--VL_TOTAL_ITENS_INFORMADOS}
+p1 <- ggplot(a, aes(val)) + my_ggtheme() + labs(x="a") +
+		geom_histogram(color=cores[6], fill=cores[6], bins=150)
+p2 <- ggplot(b, aes(log.val)) + my_ggtheme() + labs(x="b") +
+		geom_histogram(color=cores[6], fill=cores[6], bins=150) 
+subplot(p1, p2, titleX=TRUE)
+```
+
+Observe como a distribuição muda drasticamente de formato, deixando aquele formato de 'L' e se tornando mais parecido com uma [distribuição normal](https://pt.wikipedia.org/wiki/Ficheiro:Normal_Distribution_PDF.svg). Outra coisa que é possível perceber é que a presença de valores zero que é visível na série original $a$ fica muito explícita após a transformação $b$.
+
+### Valor pago ao fornecedor
+
+A variável "VL_ITEM_PAGO_FORNECEDOR" indica o valor total que o operadora (plano de saúde, seguradora, etc.) pagou diretamente para a fornecedora de serviços de saúde (hospitais, clínicas, etc.). A maior parte das informações obtidas nesta variável é de valores zero, que representam `r ncent(sum(temp$VL_ITEM_PAGO_FORNECEDOR==0), nrow(temp))` das observações. Retirar estes dados nos deixa com apenas `r sum(temp$VL_ITEM_PAGO_FORNECEDOR!=0)` observações para analisar.
+
+Com tantas observações onde o pagamento nem chega a ser feito, um modelo preditivo que tente prever esta variável teria dificuldade de chegar num valor preciso, e provavelmente apresentaria viés, subestimando os valores. Para contornar este problema, deve se observar apenas as observações com valor diferente de zero, talvez seja interessante incluir outro modelo para prever se o pagamento será necessário ou não, assim todas as necessidades de previsão se tornam satisfeitas.
+
+```{r IQR--VL_ITEM_PAGO_FORNECEDOR}
+a <- temp$VL_ITEM_PAGO_FORNECEDOR %>% .[.!=0]
+b <- tibble(log.val=log(a+1))
+a <- tibble(val=IQRsel(a))
+```
+
+Foram removidos `r ncent(nrow(a), nrow(temp[temp$VL_ITEM_PAGO_FORNECEDOR!=0,]), F)` dos dados considerados *outliers* da série original $a$ sem os valores zero. A série modificada $b$ também sofreu a remoção dos valores zero, não sofreu nenhuma remoção de *outlier*.
+
+```{r plot--VL_ITEM_PAGO_FORNECEDOR}
+p1 <- ggplot(a, aes(val)) + my_ggtheme() + labs(x="a") +
+		geom_histogram(color=cores[6], fill=cores[6], bins=150)
+p2 <- ggplot(b, aes(log.val)) + my_ggtheme() + labs(x="b") +
+		geom_histogram(color=cores[6], fill=cores[6], bins=150) 
+subplot(p1, p2, titleX=TRUE)
+```
+
+Neste caso, ao aplicar a mesma transformação com *logaritmo natural* tem o mesmo efeito que observamos anteriormente no valor total pago dos itens e procedimentos ("VL_TOTAL_ITENS_INFORMADOS").
+
+### Dias de permanência
+
+A variável "TEMPO_DE_PERMANENCIA" mede o tempo de permanência no atendimento em dias, se uma pessoa é liberada no mesmo dia em que chega no hospital, o valor informado na variável será 1, se sair no dia seguinte, será 2, e assim sucessivamente. Uma característica que torna esta variável diferente das outras variáveis numéricas é o fato de ser discreta, ou seja, só aceita números inteiros.
+
+```{r IQR--TEMPO_DE_PERMANENCIA}
+a <- temp$TEMPO_DE_PERMANENCIA
+b <- tibble(val=abs(a))
+a <- tibble(val=abs(IQRsel(a)))
+```
+
+Foram removidos `r ncent(nrow(a), nrow(temp), F)` dos dados considerados outliers, usando o método da Faixa Interquartil mencionada anteriormente. Por ser uma variável discreta com relativamente poucos valores possíveis, as transformações reversíveis normalmente não vão trazer mudanças drásticas na sua distribuição.
+
+```{r plot--TEMPO_DE_PERMANENCIA}
+p1 <- ggplot(a, aes(val)) + my_ggtheme() + labs(x="Outliers removidos") +
+		geom_histogram(color=cores[6], fill=cores[6], bins=13)
+p2 <- ggplot(b, aes(val)) + my_ggtheme() + labs(x="Original") +
+		geom_histogram(color=cores[6], fill=cores[6], bins=500)
+subplot(p1, p2, titleX=TRUE)
+```
+
+A duração das internações ocorrem dentro do esperado, de maneira que as mais graves (com necessidade de mais tempo de internação) são bem menos recorrentes. Estou aproveitando que não vou aplicar nenhuma transformação nesta variável para mostrar o impacto de se remover os *outliers* numa variável numérica como esta; esta mudança na distribuição observada acima também ocorre nas demais variáveis numéricas vistas anteriormente.
+
+Deve ser interessante ver como esta variável se relaciona com outras variáveis categóricas como faixa etária, e numéricas como o valor dos itens e procedimentos.
+
+------------------------------------------------------------------------
+
+# Relações e correlações
+
+Para medir as relações entre as variáveis com a menor interferência possível, vamos criar um *data frame* com as variáveis numéricas e categóricas, e fazer algumas alterações para facilitar a nossa análise. Primeiramente vamos remover todos os valores faltantes e *outliers* da nossa amostra, e depois vamos incluir as versões transformadas que observamos anteriormente.
+
+```{r tidy_df}
+temp <- na.omit(agg_df)
+s1 <- IQRsel(temp$VL_TOTAL_ITENS_INFORMADOS, sel=T)
+s2 <- IQRsel(temp$VL_ITEM_PAGO_FORNECEDOR, sel=T)
+s3 <- IQRsel(temp$TEMPO_DE_PERMANENCIA, sel=T)
+
+tidy_df <- temp[s1 & s2 & s3,] %>% 
+	mutate(
+		log.valor_item_inf = log(VL_TOTAL_ITENS_INFORMADOS+1),
+		log.valor_pago_forn = log(VL_ITEM_PAGO_FORNECEDOR+1),
+		TEMPO_DE_PERMANENCIA = abs(TEMPO_DE_PERMANENCIA))
+```
+
+Tirar todos os *outliers* de umas variáveis de um *data frame* pode acabar retirando também valores úteis de outras variáveis, desta maneira a perda de informação acaba indo mais longe que o desejado, dependendo da quantidade de variáveis com *outliers* e da quantidade de observações desta natureza ao longo de cada variável individualmente. Esta limpeza mais brusca retirou `r ncent(nrow(tidy_df), nrow(agg_df), F)` dos dados originais, mas considerando apenas os outliers, a remoção foi de `r ncent(nrow(tidy_df), nrow(na.omit(agg_df)), F)` das observações, mesmo assim, uma perda de informação maior que qualquer remoção individual de *outliers* feita ao longo do tópico 3.2.
+
+Ao realizar estes cortes, uma coisa curiosa aconteceu: todos os valores de "VL_ITEM_PAGO_FORNECEDOR" agora são zero! Tínhamos observado antes que existia uma permanência muito grande de valores zero, e depois de fazer esta limpeza, já temos o primeiro *insight*: A ocorrência de valores diferentes de zero nesta variável pode estar associada com a presença de *outlier(s)* de outra(s) variável(eis); isto quer dizer que estas transferências diretas do seguro/plano de saúde para operadora de saúde estão relacionadas ao caso extremo em alguma outra variável, como valor dos procedimentos e/ou tempo de permanência.
+
+Vamos começar a investigar as correlações por essa possível correlação que encontramos aqui:
+
+## Valor pago ao fornecedor VS variáveis categóricas
+
+Para observar esta variável vamos ter que fazer um corte diferente das demais. Já que existem muitos valores iguais a zero, vamos pegar apenas os diferentes de zero, e depois vamos dar uma olhada em como a presença destes valores se distribui ao longo das variáveis categóricas:
+
+```{r CatVarsCut01}
+temp <- agg_df[agg_df$VL_ITEM_PAGO_FORNECEDOR > 0,]
+
+temp <- temp %>% 
+	mutate_all(order_factor) %>% 
+	pivot_longer(
+		cols=c(SEXO, FAIXA_ETARIA, PORTE, NM_MODALIDADE, 
+				 UF_PRESTADOR, ANO_MES_EVENTO), 
+		values_to="Valor")
+p <- ggplot(temp, aes(Valor)) + 
+	geom_bar(fill=cores[6]) + coord_flip() +
+	facet_wrap(.~name, scales="free", ncol=2) + 
+	labs(
+		y=NULL, x=NULL, 
+		title="Frequência das variáveis categóricas onde o valor<br>pago ao fornecedor é maior que zero") + 
+	my_ggtheme() + theme(axis.text.y=element_blank())
+ggplotly(p, height=900) %>% layout(margin=list(t=150))
+```
+
+A distribuição dessas variáveis se difere da que já observamos antes quando não fizemos recortes nos dados. [Já vimos aqui](#categóricas) como o valor pago ao fornecedor se distribui originalmente ao longo de todas as observações, e a primeira coisa que dá para perceber é a ausência de informações em boa parte das ocorrências em que essa variável tem valor maior que zero.
+
+Nos casos em que há informação, as mudanças mais perceptíveis que obtemos está na faixa etária, onde há uma maior concentração de ocorrências está na faixa dos 30 à 39 anos de idade e entre os idosos, enquanto que neste recorte existe uma concentração entre os adultos de todas as idades; outra grande mudança é regional, a maioria das ocorrências estavam nos estados mais populosos do país, mas neste recorte as ocorrências se concentram primeiramente nos estados mais populosos do nordeste.
+
+## Valor pago ao fornecedor VS valor dos itens e procedimentos
+
+Não será necessário repetir este procedimento para as outras variáveis numéricas, por que nenhuma das outras possui um número de valores zero e faltantes quanto esta. Agora podemos fazer uma análise entre as variáveis numéricas, mas antes de colocar a mão na massa, devemos lembrar das distribuições das variáveis numéricas que [observamos anteriormente](#numéricas). A amostra que temos do "valor pago ao fornecedor" e do "valor dos procedimentos" contém observações muito erráticas mesmo depois da remoção de *outliers*, portanto, o que vamos fazer é comparar suas versões transformadas por logaritmos que também observamos anteriormente.
+
+```{r numVarsCorrCut01}
+temp <- agg_df %>% na.omit() %>%
+	.[.$VL_ITEM_PAGO_FORNECEDOR > 0,] %>%
+	mutate(log.vl_itens=log(VL_TOTAL_ITENS_INFORMADOS+1),
+			 log.vl_pago=log(VL_ITEM_PAGO_FORNECEDOR+1))
+
+p <- ggplot(temp, aes(log.vl_pago, log.vl_itens)) + 
+	geom_point(color=cores[6], alpha=0.2) +
+	geom_smooth(method="lm", formula=y~x, se=F, color=cores[6]) +
+	labs(
+		x="Logaritmo natural do valor pago ao fornecedor", 
+		y="Logaritmo natural do valor dos \nitens e procedimentos") +
+	my_ggtheme()
+
+ggplotly(p)
+```
+
+Este resultado é muito interessante! Aparentemente, o valor pago ao fornecedor está correlacionado com o valor dos procedimentos, numa escala de 0 a 1, o coeficiente de correlação entre eles é de `r cor(temp$log.vl_itens, temp$log.vl_pago)`, o que significa que valores maiores dos itens e procedimentos está geralmente relacionado à valores maiores pagos ao fornecedor. Mas é importante lembrar que só observamos esta correlação após transformar as variáveis, e mais importante, depois de tirar várias observações onde o valor pago ao fornecedor é zero, desfazer qualquer uma destas alterações certamente diminuiria o nível de correlação entre elas.
+
+Depois de vasculhar as demais variáveis, temos o poder de definir as que mais poderiam ajudar a prever a necessidade de um fornecedor pagar, ou até mesmo qual valor seria pago. Uma simples regressão linear (linha reta no gráfico acima) já consegue representar bem a relação entre estas variáveis.
+
+Também dá pra perceber algumas aglomerações curiosas: Uma maior, que está mais inclinada que a reta de regressão, uma pequena que aparenta estar mais horizontalizada que reta da regressão simples, além de alguns dados dispersos que parecem apresentar pouca ou nenhuma correlação entre si no canto superior esquerdo.
+
+Separar estes três grupos que percebemos em conjuntos diferentes pode ajudar a tornar a previsão ainda mais precisa, alguns modelos de previsão podem ser usados para fazer esta separação de maneira dinâmica e automática, sem demandar atenção constante de uma pessoa conforme novos dados forem adicionados.
+
+## Dias de permanência VS valor dos itens e procedimentos
+
+Seria possível esperar que valores maiores gastos em itens e procedimentos no atendimento estejam relacionados a tempos maiores de internação. Neste gráfico abaixo nós podemos ver como estas variáveis se relacionam na prática:
+
+```{r}
+p <- ggplot(tidy_df, aes(log.valor_item_inf, TEMPO_DE_PERMANENCIA)) +
+	geom_point(alpha=1/20, color=cores[6]) + my_ggtheme() +
+	labs(y=NULL, x="Logarítmo natural do \nvalor total dos procedimentos")
+g <- ggplot(tidy_df, aes(VL_TOTAL_ITENS_INFORMADOS, TEMPO_DE_PERMANENCIA)) +
+	geom_point(alpha=1/20, color=cores[6]) + my_ggtheme() +
+	labs(y="Tempo de permanência (dias)", x="Valor total dos procedimentos\n")
+ggpubr::ggarrange(g, p, nrow=1)
+```
+
+Pelo que podemos ver nos gráficos, existe uma mudança na variância dos valores totais para cada tempo de permanência, explico: podemos ver que qualquer valor é possível nos procedimentos quando o tempo de permanência é igual á 1 dia, mas as possibilidades vão se estreitando conforme o tempo de permanência vai aumentando, na estatística, este comportamento é chamado de (alerta de palavrão) heterocedasticidade.
+
+Quando olhamos para os coeficientes de correlação do tempo de permanência contra o valor dos procedimentos (`r format_numbers(cor(tidy_df$TEMPO_DE_PERMANENCIA, tidy_df$VL_TOTAL_ITENS_INFORMADOS), 4)`) e contra o logaritmo natural da mesma variável (`r format_numbers(cor(tidy_df$TEMPO_DE_PERMANENCIA, tidy_df$log.valor_item_inf), 4)`) são ambos positivos, mas a impressão que temos pelos gráficos é de que estas correlações deveriam apresentar valores negativos e positivos respectivamente. Este é um efeito da heterocedasticidade, quando temos variâncias inconsistentes entre duas variáveis, algumas dessas métricas passam a ser pouco confiáveis.
+
+## Dias de permanência VS variáveis categóricas
+
+Não há nenhuma maneira oficial de obter algum tipo de correlação entre variáeis numéricas e categóricas, mas podemos fazer algumas contas para tentar entender onde os valores de cada variável numérica se concentra. Neste caso, vamos poder descobrir que variáveis categóricas descrevem melhor as pessoas que passam mais tempo internadas, e consequentemente o caso oposto também.
+
+Para chegar neste objetivo, vamos primeiramente considerar uma variável categórica $x$ com $n$ observações, que possui um número limitado de valores possíveis identificados numericamente: $1$, $2$, ..., $r$; cada uma com $i_1$, $i_2$, ..., $i_r$ observações respectivamente. A proporção do r-ésimo valor possível será $prop_r =\frac{i_r}{n}$, e o somatório das observações de cada valor possível deverá igual a $n$:
+
+$$
+\sum_{u=1}^{r}{i_u}=n
+$$
+
+E portanto, o somatório das proporções será igual a 1:
+
+$$
+\sum_{u=1}^{r}{prop_u}=1
+$$
+
+A próxima coisa que vamos fazer é um recorte da variável que queremos comparar, considerando a zona de nosso interesse. Todas as considerações anteriores devem permanecer constantes, exceto por alguns detalhes:
+
+1.  O novo comprimento da variável será menor $m < n$;
+2.  O valor individual de cada proporção ($prop_1$, ..., $prop_r$) poderá mudar;
+
+Nosso objetivo é encontrar mudanças nestas proporções, se uma delas se torna maior depois de fazer o recorte, podemos dizer que ela se concentra na região selecionada, se diminui, podemos dizer que se concentra mais fora da região selecionada, e o valor dessa diferença de proporções pode indicar o quão concentrada ela está. Agora vamos transformar esse "matematiquês" em código, escrevendo uma função:
+
+```{r}
+prop_diff <- function(cat.var, sel.var, sel.func){
+	# Garantir que as duas variáveis tem o mesmo tamanho
+	N <- length(cat.var) # total de observacoes
+	if (N != length(sel.var)) stop("Variáveis com comprimentos diferentes")
+	
+	# Garantir que a ausencia de valores sera contabilizada
+	cat.var[is.na(cat.var)] <- "NA"; cat.var[is.null(cat.var)] <- "Null"
+	
+	# Garantir que os valores que se tornarem ausentes nao serao esquecidos
+	cat.var <- as.factor(cat.var)
+	
+	# Obtendo as porcentagens originais
+	percent0 <- table(cat.var)
+	percent0 <- sapply(percent0, function(x)x*100/N)
+	
+	# Obtendo as porcentagens dos dados recortados
+	sel <- sel.func(sel.var) # indicando quais valores retirar
+	N <- sum(sel) # total de observacoes na selecao
+	percent1 <- table(cat.var[sel])
+	percent1 <- sapply(percent1, function(x)x*100/N)
+	
+	# Retornando as diferencas
+	return(percent1 - percent0)
+}
+```
+
+Agora que temos a função pronta, podemos ver quantos pontos percentuais cada valor possível da variável selecionada deve mudar ao realizar um recorte pelo valor de "TEMPO_DE_PERMANENCIA", se a distribuição for uniforme ao longo de todos os possíveis valores, devemos encontrar resultados próximos de zero, o que quer dizer que esta variável categórica não pode nos ajudar a prever o tempo de permanência.
+
+Mas antes de começar a explorar, quero deixar algumas coisas definidas aqui:
+
+1.  Vou continuar usando aquele *data frame* em que os outliers de todas as variáveis foram removidos, fazer o mesmo procedimento com os dados completos, pode trazer resultados um pouco diferentes;
+
+2.  Vou sempre aplicar um recorte simples (maior ou menor que algum valor-chave) arbitrariamente até encontrar o resultado mais expressivo, esta parte dos resultados não será totalmente padronizada;
+
+3.  Fica subentendido que as variáveis que não forem contempladas não apresentaram resultados significativos.
+
+Agora sim podemos começar!
+
+### Sexo
+
+```{r}
+prop_diff(tidy_df$SEXO, tidy_df$TEMPO_DE_PERMANENCIA, function(x)x>10)
+```
+
+
+### Porte
+
+```{r}
+prop_diff(tidy_df$PORTE, tidy_df$TEMPO_DE_PERMANENCIA, function(x)x>9)
+```
+
+
+### Faixa etária
+
+```{r}
+prop_diff(PORTE, TEMPO_DE_PERMANENCIA, function(x)x>12)
+```
+
+## Valor dos itens e procedimentos VS variáveis categóricas
+
+------------------------------------------------------------------------
+
+# Visão de dados
+
+As variáveis mais indicadas para alimentar um modelo de previsão já foram discutidas anteriormente. Agora estas variáveis serão agregadas por internação e separadas em dois grupos: um para treinamento dos modelos e outro para avaliar a qualidade das previsões. O grupo de treinamento será uma amostra aleatória contendo 80% dos dados disponíveis, enquanto que os dados de avaliação serão os demais 20% dos dados que não foram incluídos no grupo de treinamento.
