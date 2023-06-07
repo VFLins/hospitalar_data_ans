@@ -61,6 +61,10 @@ hr {
 	background-color: #cccccc;
 }
 
+pre:not([class]) {
+    background-color: #232323;
+}
+
 .hljs-comment{
 	color: #978b76}
 

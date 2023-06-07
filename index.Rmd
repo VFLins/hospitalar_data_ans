@@ -410,18 +410,16 @@ Agora sim podemos começar!
 prop_diff(tidy_df$SEXO, tidy_df$TEMPO_DE_PERMANENCIA, function(x)x>10)
 ```
 
-
 ### Porte
 
 ```{r}
 prop_diff(tidy_df$PORTE, tidy_df$TEMPO_DE_PERMANENCIA, function(x)x>9)
 ```
 
-
 ### Faixa etária
 
 ```{r}
-prop_diff(tidy_df$PORTE, tidy_df$TEMPO_DE_PERMANENCIA, function(x)x>12)
+prop_diff(tidy_df$FAIXA_ETARIA, tidy_df$TEMPO_DE_PERMANENCIA, function(x)x>12)
 ```
 
 ## Valor dos itens e procedimentos VS variáveis categóricas
