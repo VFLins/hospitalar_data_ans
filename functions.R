@@ -3,7 +3,7 @@ my_ggtheme <- function() {
 	theme_minimal(base_size=14) +
 	theme(
 		plot.title=element_text(color=cores[3]),
-		plot.background=element_rect(fill=cores[1]),
+		plot.background=element_rect(fill=cores[1], color=cores[1]),
 		panel.background=element_rect(fill=cores[1], color=cores[1]),
 		panel.grid=element_line(color=cores[2]),
 		axis.text=element_text(color=cores[3]),
