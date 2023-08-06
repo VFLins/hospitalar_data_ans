@@ -21,13 +21,41 @@ source("functions.R")
 source("texts.R")
 
 options(outDec=",",big.mark=".")
-```
 
-```{r packages, include=FALSE}
 library(plotly)
 library(flextable)
 library(tidyverse)
 set_flextable_defaults(scroll=list())
+
+# tabela unificada
+df <- readRDS("pda_tiss_hosp_mini.rds")
+
+# corrigindo valores ausentes
+temp <- df[, c("VL_ITEM_EVENTO_INFORMADO", "VL_ITEM_PAGO_FORNECEDOR")]
+temp[is.na(temp)] <- 0
+df[, c("VL_ITEM_EVENTO_INFORMADO", "VL_ITEM_PAGO_FORNECEDOR")] <- temp
+
+# dados com variaveis numericas de interesse agregadas por ocorrencia
+aggnum_df <- df[,c(id_var, numeric_vars)] %>% 
+	group_by(ID_EVENTO_ATENCAO_SAUDE) %>% 
+	summarise(
+		VL_TOTAL_ITENS_INFORMADOS=sum(QT_ITEM_EVENTO_INFORMADO*VL_ITEM_EVENTO_INFORMADO),
+		VL_ITEM_PAGO_FORNECEDOR=sum(VL_ITEM_PAGO_FORNECEDOR),
+		TEMPO_DE_PERMANENCIA=max(TEMPO_DE_PERMANENCIA))
+
+# dados com variaveis categoricas de interesse agregadas por ocorrencia
+aggcat_df <-  df[,c(id_var, categorical_vars)] %>% 
+	group_by(ID_EVENTO_ATENCAO_SAUDE) %>%
+	summarise_at(categorical_vars, max) %>%
+	mutate(ANO_MES_EVENTO=zoo::as.yearmon(ANO_MES_EVENTO))
+
+# tabela agregada
+agg_df <- inner_join(aggcat_df, aggnum_df, by="ID_EVENTO_ATENCAO_SAUDE")
+
+# dados para treinamento de modelo
+tdf <- slice_sample(agg_df, prop=0.8)
+# dados para avaliação de modelo
+adf <- agg_df[!{agg_df$ID_EVENTO_ATENCAO_SAUDE %in% tdf$ID_EVENTO_ATENCAO_SAUDE},]
 ```
 
 # Introdução
@@ -42,7 +70,7 @@ Como a tabela **Detalhada** apresenta múltiplas observações para cada atendim
 
 Estas duas tabelas foram unidas em apenas uma chamada **Unificada**, que repete as observações da tabela **Consolidada** ao longo de suas respectivas ocorrências na tabela **Detalhada**. Além disso, uma nova tabela foi criada aqui para análise, que será chamada de **Agregada**, que agrega a tabela unificada por ocorrência de atendimento.
 
-```{r datasets}
+```{r datasets, eval=FALSE}
 # tabela unificada
 df <- readRDS("pda_tiss_hosp_mini.rds")
 
@@ -384,12 +412,24 @@ As variáveis mais indicadas para alimentar um modelo de previsão já foram dis
 Os principais negócios interessados no valor deste conjunto de dados seriam as empresas seguradoras de saúde, estas estariam principalmente em prever se haveria necessidade de transferir algum recurso para a fornecedora de saúde. Para isso, vamos adicionar uma variável-alvo que represente o evento de acionamento do seguro.
 
 ```{r MDL1--TARGET-VARIABLE}
+# Criando variavel target
 df$ACIONAMENTO_SEGURO <- df$VL_ITEM_PAGO_FORNECEDOR > 0
-```
 
-```{r include=FALSE}
+# Obtendo informações sobre o balanceamento dos dados
 QTD_ACIONAMENTOS <- sum(df$ACIONAMENTO_SEGURO)
 QTD_CASOS <- nrow(df)
 ```
 
 A próxima etapa é escolher as variáveis que podem ajudar nosso modelo preditivo a chegar na resposta esperada com tempestividade. Mas apenas depois que obtivermos um conjunto de dados balanceados, pois apenas `r round(QTD_ACIONAMENTOS/QTD_CASOS*100, 2) |> paste0("%")` das ocorreências registradas apresentam acionamento de seguro, para evitar vieses, o efeito da simples quantidade de observações não pode ser maior que a presença das variáveis explicativas.
+
+```{r MDL1--BALANCING-DATASET}
+# Obtendo indices de `df`
+df_index <- row.names(df) %>% as.numeric()
+# Obtendo indices das amostras balanceadas
+### maximizando a quantidade de observações usando todos os casos positivos
+negative_sample_index <- sample(x=df_index[!df$ACIONAMENTO_SEGURO], size=QTD_ACIONAMENTOS)
+positive_index <- df_index[df$ACIONAMENTO_SEGURO]
+# Criando novo dataframe com valores de "ACIONAMENTO_SEGURO" balanceados
+mdl1_df <- df[c(negative_sample_index, positive_index),]
+```
+
