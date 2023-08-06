@@ -333,7 +333,7 @@ Separar estes três grupos que percebemos em conjuntos diferentes pode ajudar a 
 
 Seria possível esperar que valores maiores gastos em itens e procedimentos no atendimento estejam relacionados a tempos maiores de internação. Neste gráfico abaixo nós podemos ver como estas variáveis se relacionam na prática:
 
-```{r}
+```{r plot--VALOR-DOS-PROCEDIMENTOS-VS-DIAS-PERMANENCIA}
 p <- ggplot(tidy_df, aes(log.valor_item_inf, TEMPO_DE_PERMANENCIA)) +
 	geom_point(alpha=1/20, color=cores[6]) + my_ggtheme() +
 	labs(y=NULL, x="Logarítmo natural do \nvalor total dos procedimentos")
@@ -355,7 +355,7 @@ Agora vamos poder descobrir que variáveis categóricas descrevem melhor as pess
 
 Existe uma presença maior de homens entre os que ficam internados por mais dias.
 
-```{r}
+```{r plot--SEXO-VS-DIAS-PERMANENCIA}
 p <- ggplot(tidy_df, aes(y=TEMPO_DE_PERMANENCIA, x=SEXO)) +
 	geom_boxplot(fill=cores[6], outlier.color=cores[3], color=cores[3]) +
 	my_ggtheme() + xlab(NULL) + coord_flip()
@@ -366,7 +366,7 @@ ggplotly(p)
 
 Como esperado, as idades maiores estão mais relacionadas à maior tempo de internação, os requisitos mencionados anteriormente podem estar relacionados com a adoção de preços significativamente mais altos para clientes com idades mais altas. Curiosamente os infantes com idade menor que 5 anos também estão entre os que passam mais tempo internados.
 
-```{r}
+```{r plot--FAXIXA-ETARIA-VS-TEMPO-DE-PERMANENCIA}
 p <- ggplot(tidy_df, aes(y=TEMPO_DE_PERMANENCIA, x=FAIXA_ETARIA)) +
 	geom_boxplot(fill=cores[6], color=cores[3]) +
 	my_ggtheme() + xlab(NULL) + coord_flip()
@@ -379,4 +379,17 @@ ggplotly(p)
 
 As variáveis mais indicadas para alimentar um modelo de previsão já foram discutidas anteriormente. Agora estas variáveis serão agregadas por internação e separadas em dois grupos: um para treinamento dos modelos e outro para avaliar a qualidade das previsões. O grupo de treinamento será uma amostra aleatória contendo 80% dos dados disponíveis, enquanto que os dados de avaliação serão os demais 20% dos dados que não foram incluídos no grupo de treinamento.
 
+## Prevendo acionamentos de seguro
 
+Os principais negócios interessados no valor deste conjunto de dados seriam as empresas seguradoras de saúde, estas estariam principalmente em prever se haveria necessidade de transferir algum recurso para a fornecedora de saúde. Para isso, vamos adicionar uma variável-alvo que represente o evento de acionamento do seguro.
+
+```{r MDL1--TARGET-VARIABLE}
+df$ACIONAMENTO_SEGURO <- df$VL_ITEM_PAGO_FORNECEDOR > 0
+```
+
+```{r include=FALSE}
+QTD_ACIONAMENTOS <- sum(df$ACIONAMENTO_SEGURO)
+QTD_CASOS <- nrow(df)
+```
+
+A próxima etapa é escolher as variáveis que podem ajudar nosso modelo preditivo a chegar na resposta esperada com tempestividade. Mas apenas depois que obtivermos um conjunto de dados balanceados, pois apenas `r round(QTD_ACIONAMENTOS/QTD_CASOS*100, 2) |> paste0("%")` das ocorreências registradas apresentam acionamento de seguro, para evitar vieses, o efeito da simples quantidade de observações não pode ser maior que a presença das variáveis explicativas.
