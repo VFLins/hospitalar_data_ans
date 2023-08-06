@@ -46,6 +46,11 @@ Estas duas tabelas foram unidas em apenas uma chamada **Unificada**, que repete 
 # tabela unificada
 df <- readRDS("pda_tiss_hosp_mini.rds")
 
+# corrigindo valores ausentes
+temp <- df[, c("VL_ITEM_EVENTO_INFORMADO", "VL_ITEM_PAGO_FORNECEDOR")]
+temp[is.na(temp)] <- 0
+df[, c("VL_ITEM_EVENTO_INFORMADO", "VL_ITEM_PAGO_FORNECEDOR")] <- temp
+
 # dados com variaveis numericas de interesse agregadas por ocorrencia
 aggnum_df <- df[,c(id_var, numeric_vars)] %>% 
 	group_by(ID_EVENTO_ATENCAO_SAUDE) %>% 
@@ -187,7 +192,7 @@ Já na série transformada $b$, cada observação $b_i$ sofreu a transformação
 
 ```{r plot--VL_TOTAL_ITENS_INFORMADOS}
 p1 <- ggplot(a, aes(val)) + my_ggtheme() + labs(x="a") +
-		geom_histogram(color=cores[6], fill=cores[6], bins=150)
+	geom_histogram(color=cores[6], fill=cores[6], bins=150)
 p2 <- ggplot(b, aes(log.val)) + my_ggtheme() + labs(x="b") +
 		geom_histogram(color=cores[6], fill=cores[6], bins=150) 
 subplot(p1, p2, titleX=TRUE)
@@ -348,7 +353,7 @@ Agora vamos poder descobrir que variáveis categóricas descrevem melhor as pess
 
 ### Sexo
 
-Aparentemente existe uma presença maior de homens entre os que ficam internados por mais dias.
+Existe uma presença maior de homens entre os que ficam internados por mais dias.
 
 ```{r}
 p <- ggplot(tidy_df, aes(y=TEMPO_DE_PERMANENCIA, x=SEXO)) +
@@ -359,7 +364,7 @@ ggplotly(p)
 
 ### Faixa etária
 
-Como esperado, as idades maiores estão mais relacionadas à maior tempo de internação, os requisitos mencionados anteriormente podem estar relacionados com a adoção de preços significativamente mais altos para clientes com idades mais altas. Curiosamente os infantes com idade menor que 5 anos também está entre os que passam mais tempo internados.
+Como esperado, as idades maiores estão mais relacionadas à maior tempo de internação, os requisitos mencionados anteriormente podem estar relacionados com a adoção de preços significativamente mais altos para clientes com idades mais altas. Curiosamente os infantes com idade menor que 5 anos também estão entre os que passam mais tempo internados.
 
 ```{r}
 p <- ggplot(tidy_df, aes(y=TEMPO_DE_PERMANENCIA, x=FAIXA_ETARIA)) +
