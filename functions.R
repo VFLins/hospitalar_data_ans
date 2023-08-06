@@ -6,10 +6,10 @@ my_ggtheme <- function() {
 		plot.background=element_rect(fill=cores[1], color=cores[1]),
 		panel.background=element_rect(fill=cores[1], color=cores[1]),
 		panel.grid=element_line(color=cores[2]),
-		axis.text=element_text(color=cores[3]),
+		axis.text=element_text(color=cores[3], size=9),
 		axis.title=element_text(color=cores[3]),
-		strip.text= element_text(color=cores[3], face="bold", size=16)
-		)
+		strip.text=element_text(color=cores[3], face="bold", size=16)
+	)
 }
 
 # Ordena fatores pela quantidade de ocorrencias para plotar
