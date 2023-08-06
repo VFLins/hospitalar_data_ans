@@ -344,88 +344,34 @@ Quando olhamos para os coeficientes de correlação do tempo de permanência con
 
 ## Dias de permanência VS variáveis categóricas
 
-Não há nenhuma maneira oficial de obter algum tipo de correlação entre variáeis numéricas e categóricas, mas podemos fazer algumas contas para tentar entender onde os valores de cada variável numérica se concentra. Neste caso, vamos poder descobrir que variáveis categóricas descrevem melhor as pessoas que passam mais tempo internadas, e consequentemente o caso oposto também.
-
-Para chegar neste objetivo, vamos primeiramente considerar uma variável categórica $x$ com $n$ observações, que possui um número limitado de valores possíveis identificados numericamente: $1$, $2$, ..., $r$; cada uma com $i_1$, $i_2$, ..., $i_r$ observações respectivamente. A proporção do r-ésimo valor possível será $prop_r =\frac{i_r}{n}$, e o somatório das observações de cada valor possível deverá igual a $n$:
-
-$$
-\sum_{u=1}^{r}{i_u}=n
-$$
-
-E portanto, o somatório das proporções será igual a 1:
-
-$$
-\sum_{u=1}^{r}{prop_u}=1
-$$
-
-A próxima coisa que vamos fazer é um recorte da variável que queremos comparar, considerando a zona de nosso interesse. Todas as considerações anteriores devem permanecer constantes, exceto por alguns detalhes:
-
-1.  O novo comprimento da variável será menor $m < n$;
-2.  O valor individual de cada proporção ($prop_1$, ..., $prop_r$) poderá mudar;
-
-Nosso objetivo é encontrar mudanças nestas proporções, se uma delas se torna maior depois de fazer o recorte, podemos dizer que ela se concentra na região selecionada, se diminui, podemos dizer que se concentra mais fora da região selecionada, e o valor dessa diferença de proporções pode indicar o quão concentrada ela está. Agora vamos transformar esse "matematiquês" em código, escrevendo uma função:
-
-```{r}
-prop_diff <- function(cat.var, sel.var, sel.func){
-	# Garantir que as duas variáveis tem o mesmo tamanho
-	N <- length(cat.var) # total de observacoes
-	if (N != length(sel.var)) stop("Variáveis com comprimentos diferentes")
-	
-	# Garantir que a ausencia de valores sera contabilizada
-	cat.var[is.na(cat.var)] <- "NA"; cat.var[is.null(cat.var)] <- "Null"
-	
-	# Garantir que os valores que se tornarem ausentes nao serao esquecidos
-	cat.var <- as.factor(cat.var)
-	
-	# Obtendo as porcentagens originais
-	percent0 <- table(cat.var)
-	percent0 <- sapply(percent0, function(x)x*100/N)
-	
-	# Obtendo as porcentagens dos dados recortados
-	sel <- sel.func(sel.var) # indicando quais valores retirar
-	N <- sum(sel) # total de observacoes na selecao
-	percent1 <- table(cat.var[sel])
-	percent1 <- sapply(percent1, function(x)x*100/N)
-	
-	# Retornando as diferencas
-	return(percent1 - percent0)
-}
-```
-
-Agora que temos a função pronta, podemos ver quantos pontos percentuais cada valor possível da variável selecionada deve mudar ao realizar um recorte pelo valor de "TEMPO_DE_PERMANENCIA", se a distribuição for uniforme ao longo de todos os possíveis valores, devemos encontrar resultados próximos de zero, o que quer dizer que esta variável categórica não pode nos ajudar a prever o tempo de permanência.
-
-Mas antes de começar a explorar, quero deixar algumas coisas definidas aqui:
-
-1.  Vou continuar usando aquele *data frame* em que os outliers de todas as variáveis foram removidos, fazer o mesmo procedimento com os dados completos, pode trazer resultados um pouco diferentes;
-
-2.  Vou sempre aplicar um recorte simples (maior ou menor que algum valor-chave) arbitrariamente até encontrar o resultado mais expressivo, esta parte dos resultados não será totalmente padronizada;
-
-3.  Fica subentendido que as variáveis que não forem contempladas não apresentaram resultados significativos.
-
-Agora sim podemos começar!
+Agora vamos poder descobrir que variáveis categóricas descrevem melhor as pessoas que passam mais tempo internadas, e consequentemente o caso oposto também.
 
 ### Sexo
 
-```{r}
-prop_diff(tidy_df$SEXO, tidy_df$TEMPO_DE_PERMANENCIA, function(x)x>10)
-```
-
-### Porte
+Aparentemente existe uma presença maior de homens entre os que ficam internados por mais dias.
 
 ```{r}
-prop_diff(tidy_df$PORTE, tidy_df$TEMPO_DE_PERMANENCIA, function(x)x>9)
+p <- ggplot(tidy_df, aes(y=TEMPO_DE_PERMANENCIA, x=SEXO)) +
+	geom_boxplot(fill=cores[6], outlier.color=cores[3], color=cores[3]) +
+	my_ggtheme() + xlab(NULL) + coord_flip()
+ggplotly(p)
 ```
 
 ### Faixa etária
 
-```{r}
-prop_diff(tidy_df$FAIXA_ETARIA, tidy_df$TEMPO_DE_PERMANENCIA, function(x)x>12)
-```
+Como esperado, as idades maiores estão mais relacionadas à maior tempo de internação, os requisitos mencionados anteriormente podem estar relacionados com a adoção de preços significativamente mais altos para clientes com idades mais altas. Curiosamente os infantes com idade menor que 5 anos também está entre os que passam mais tempo internados.
 
-## Valor dos itens e procedimentos VS variáveis categóricas
+```{r}
+p <- ggplot(tidy_df, aes(y=TEMPO_DE_PERMANENCIA, x=FAIXA_ETARIA)) +
+	geom_boxplot(fill=cores[6], color=cores[3]) +
+	my_ggtheme() + xlab(NULL) + coord_flip()
+ggplotly(p)
+```
 
 ------------------------------------------------------------------------
 
 # Visão de dados
 
 As variáveis mais indicadas para alimentar um modelo de previsão já foram discutidas anteriormente. Agora estas variáveis serão agregadas por internação e separadas em dois grupos: um para treinamento dos modelos e outro para avaliar a qualidade das previsões. O grupo de treinamento será uma amostra aleatória contendo 80% dos dados disponíveis, enquanto que os dados de avaliação serão os demais 20% dos dados que não foram incluídos no grupo de treinamento.
+
+
