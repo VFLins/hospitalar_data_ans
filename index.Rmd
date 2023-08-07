@@ -72,19 +72,19 @@ tidy_df <- temp[s1 & s2 & s3,] %>%
 #### Modelagem ####
 #=================#
 # Criando variavel target
-agg_df$ACIONAMENTO_DO_SEGURO <- agg_dfdf$VL_ITEM_PAGO_FORNECEDOR > 0
+agg_df$ACIONAMENTO_DO_SEGURO <- agg_df$VL_ITEM_PAGO_FORNECEDOR > 0
 
 # Obtendo informações sobre o balanceamento dos dados
 QTD_ACIONAMENTOS <- sum(df$ACIONAMENTO_DO_SEGURO)
 QTD_CASOS <- nrow(df)
-s
+
 # Obtendo indices de `agg_df`
 df_index <- row.names(agg_df) %>% as.numeric()
 
 # Obtendo indices das amostras balanceadas
 ### maximizando a quantidade de observações usando todos os casos positivos
-negative_sample_index <- sample(x=df_index[!df$ACIONAMENTO_DO_SEGURO], size=QTD_ACIONAMENTOS)
-positive_index <- df_index[df$ACIONAMENTO_DO_SEGURO]
+negative_sample_index <- sample(x=df_index[!agg_df$ACIONAMENTO_DO_SEGURO], size=QTD_ACIONAMENTOS)
+positive_index <- df_index[agg_df$ACIONAMENTO_DO_SEGURO]
 mdl1_index <- c(negative_sample_index, positive_index)
 
 # Selecionando variáveis úteis
@@ -468,8 +468,8 @@ df_index <- row.names(agg_df) %>% as.numeric()
 
 # Obtendo indices das amostras balanceadas
 ### maximizando a quantidade de observações usando todos os casos positivos
-negative_sample_index <- sample(x=df_index[!df$ACIONAMENTO_DO_SEGURO], size=QTD_ACIONAMENTOS)
-positive_index <- df_index[df$ACIONAMENTO_DO_SEGURO]
+negative_sample_index <- sample(x=df_index[!agg_df$ACIONAMENTO_DO_SEGURO], size=QTD_ACIONAMENTOS)
+positive_index <- df_index[agg_df$ACIONAMENTO_DO_SEGURO]
 mdl1_index <- c(negative_sample_index, positive_index)
 
 # Selecionando variáveis úteis
