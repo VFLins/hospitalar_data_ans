@@ -15,6 +15,9 @@ output:
 ---
 
 ```{r setup}
+
+#### carregando pacotes e scripts ####
+#====================================#
 knitr::opts_chunk$set(echo=TRUE)
 
 source("functions.R")
@@ -27,6 +30,8 @@ library(flextable)
 library(tidyverse)
 set_flextable_defaults(scroll=list())
 
+#### Carregando dados ####
+#========================#
 # tabela unificada
 df <- readRDS("pda_tiss_hosp_mini.rds")
 
@@ -52,10 +57,41 @@ aggcat_df <-  df[,c(id_var, categorical_vars)] %>%
 # tabela agregada
 agg_df <- inner_join(aggcat_df, aggnum_df, by="ID_EVENTO_ATENCAO_SAUDE")
 
-# dados para treinamento de modelo
-tdf <- slice_sample(agg_df, prop=0.8)
-# dados para avaliação de modelo
-adf <- agg_df[!{agg_df$ID_EVENTO_ATENCAO_SAUDE %in% tdf$ID_EVENTO_ATENCAO_SAUDE},]
+# dados sem outliers e sem valores ausentes
+temp <- na.omit(agg_df)
+s1 <- IQRsel(temp$VL_TOTAL_ITENS_INFORMADOS, sel=T)
+s2 <- IQRsel(temp$VL_ITEM_PAGO_FORNECEDOR, sel=T)
+s3 <- IQRsel(temp$TEMPO_DE_PERMANENCIA, sel=T)
+
+tidy_df <- temp[s1 & s2 & s3,] %>% 
+	mutate(
+		log.valor_item_inf = log(VL_TOTAL_ITENS_INFORMADOS+1),
+		log.valor_pago_forn = log(VL_ITEM_PAGO_FORNECEDOR+1),
+		TEMPO_DE_PERMANENCIA = abs(TEMPO_DE_PERMANENCIA))
+
+#### Modelagem ####
+#=================#
+# Criando variavel target
+agg_df$ACIONAMENTO_DO_SEGURO <- agg_dfdf$VL_ITEM_PAGO_FORNECEDOR > 0
+
+# Obtendo informações sobre o balanceamento dos dados
+QTD_ACIONAMENTOS <- sum(df$ACIONAMENTO_DO_SEGURO)
+QTD_CASOS <- nrow(df)
+s
+# Obtendo indices de `agg_df`
+df_index <- row.names(agg_df) %>% as.numeric()
+
+# Obtendo indices das amostras balanceadas
+### maximizando a quantidade de observações usando todos os casos positivos
+negative_sample_index <- sample(x=df_index[!df$ACIONAMENTO_DO_SEGURO], size=QTD_ACIONAMENTOS)
+positive_index <- df_index[df$ACIONAMENTO_DO_SEGURO]
+mdl1_index <- c(negative_sample_index, positive_index)
+
+# Selecionando variáveis úteis
+mdl1_cols <- c("NM_MODALIDADE", "UF_PRESTADOR", "FAIXA_ETARIA", "ANO_MES_EVENTO")
+
+# Criando novo dataframe com valores de "ACIONAMENTO_DO_SEGURO" balanceados
+mdl1_df <- df[mdl1_index, mdl1_cols]
 ```
 
 # Introdução
@@ -282,7 +318,7 @@ Deve ser interessante ver como esta variável se relaciona com outras variáveis
 
 Para medir as relações entre as variáveis com a menor interferência possível, vamos criar um *data frame* com as variáveis numéricas e categóricas, e fazer algumas alterações para facilitar a nossa análise. Primeiramente vamos remover todos os valores faltantes e *outliers* da nossa amostra, e depois vamos incluir as versões transformadas que observamos anteriormente.
 
-```{r tidy_df}
+```{r tidy_df, eval=FALSE}
 temp <- na.omit(agg_df)
 s1 <- IQRsel(temp$VL_TOTAL_ITENS_INFORMADOS, sel=T)
 s2 <- IQRsel(temp$VL_ITEM_PAGO_FORNECEDOR, sel=T)
@@ -413,9 +449,9 @@ As variáveis mais indicadas para alimentar um modelo de previsão já foram dis
 
 Os principais negócios interessados no valor deste conjunto de dados seriam as empresas seguradoras de saúde, estas estariam principalmente em prever se haveria necessidade de transferir algum recurso para a fornecedora de saúde. Para isso, vamos adicionar uma variável-alvo que represente o evento de acionamento do seguro.
 
-```{r MDL1--TARGET-VARIABLE}
+```{r MDL1--TARGET-VARIABLE, eval=FALSE}
 # Criando variavel target
-df$ACIONAMENTO_DO_SEGURO <- df$VL_ITEM_PAGO_FORNECEDOR > 0
+agg_df$ACIONAMENTO_DO_SEGURO <- agg_dfdf$VL_ITEM_PAGO_FORNECEDOR > 0
 
 # Obtendo informações sobre o balanceamento dos dados
 QTD_ACIONAMENTOS <- sum(df$ACIONAMENTO_DO_SEGURO)
@@ -426,9 +462,9 @@ QTD_CASOS <- nrow(df)
 
 A próxima etapa é escolher as variáveis que podem ajudar nosso modelo preditivo a chegar na resposta esperada com tempestividade. Mas apenas depois que obtivermos um conjunto de dados balanceados, pois apenas `r round(QTD_ACIONAMENTOS/QTD_CASOS*100, 2) |> paste0("%")` das ocorreências registradas apresentam acionamento de seguro, para evitar vieses, o efeito da simples quantidade de observações não pode ser maior que a presença das variáveis explicativas.
 
-```{r MDL1--BALANCING-DATASET}
-# Obtendo indices de `df`
-df_index <- row.names(df) %>% as.numeric()
+```{r MDL1--BALANCING-DATASET, eval=FALSE}
+# Obtendo indices de `agg_df`
+df_index <- row.names(agg_df) %>% as.numeric()
 
 # Obtendo indices das amostras balanceadas
 ### maximizando a quantidade de observações usando todos os casos positivos
@@ -445,4 +481,30 @@ mdl1_df <- df[mdl1_index, mdl1_cols]
 
 ### Feature Engineering
 
+Já aprendemos [anteriormente](#relações-e-correlações) como estas variáveis categóricas se relacionam com o acionamento do seguro, o objetivo desta engenharia de variáveis é simplificar a interpretação do modelo, mas principalmente reduzir a quantidade de features aumentando sua importância.
 
+Começando pelo *`NM_MODALIDADE`*, sabemos que "Cooperativa médica" e "Medicina de Grupo" são os tipos de prestadoras com uma maior proporção de acionamentos de seguros, portanto vamos reduzir esta variável para apenas dois níveis, um para o caso de participar de alguma delas, outro para o caso contrário.
+
+```{r MDL1--FE-NM_MODALIDADE}
+
+```
+
+Percebemos também que em *`UF_PRESTADOR`*, os estados do nordeste se tornam mais presentes em relação aos demais, portanto reduzir os estados às suas regiões já deve ser suficiente.
+
+```{r MDL1--FE-UF_PRESTADOR}
+
+```
+
+Embora os mais idosos estejam entre os mais atendidos pelos fornecedores, os adultos estão entre os maiores acionadores de seguro, vamos reduzir esta quantidade excessiva de *`FAIXA_ETARIA`* em apenas 3 (crianças/jovens, adultos e idosos).
+
+```{r MDL1--FE-FAIXA_ETARIA}
+
+```
+
+Por fim, percebemos também que os seguros são acionados menos vezes nos primeiros três meses do ano, em detrimento dos demais. Vamos agregar os dados em *`ANO_MES_EVENTO`* por trimestres, independentemente do ano.
+
+```{r MDL1--FE-ANO_MES_EVENTO}
+
+```
+
+### Avaliando o modelo
