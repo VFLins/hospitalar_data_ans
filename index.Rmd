@@ -491,9 +491,9 @@ Começando pelo *`NM_MODALIDADE`*, sabemos que "Cooperativa médica" e "Medicina
 
 ```{r MDL1--FE-NM_MODALIDADE}
 temp <- mdl1_df$NM_MODALIDADE
-temp[temp %in% c("Cooperativa Médica", "Medicina De Grupo")] <- "Modalidade cooperativa"
+temp[temp %in% c("Cooperativa Médica", "Medicina De Grupo")] <- "Cooperativa"
 temp[temp %in% c("Seguradora Especializada Em Saúde", 
-					  "Filantropia", "Autogestão", NA)] <- "Modalidade não-cooperativa"
+					  "Filantropia", "Autogestão", NA)] <- "Não-cooperativa"
 mdl1_df["modalidade"] <- factor(temp)
 ```
 
@@ -524,13 +524,19 @@ mdl1_df["idade"] <- factor(temp)
 Por fim, percebemos também que os seguros são acionados menos vezes nos primeiros três meses do ano, em detrimento dos demais. Vamos agregar os dados em *`ANO_MES_EVENTO`* por trimestres, independentemente do ano.
 
 ```{r MDL1--FE-ANO_MES_EVENTO}
-temp <- mdl1_df$ANO_MES_EVENTO
 get_month <- function(x) as.numeric(format(x, "%m"))
-temp[get_month(temp) %in% 1:3] <- "Primeiro"
-temp[get_month(temp) %in% 4:6] <- "Segundo"
-temp[get_month(temp) %in% 7:9] <- "Terceiro"
-temp[get_month(temp) %in% 10:12] <- "Quarto"
+temp <- get_month(mdl1_df$ANO_MES_EVENTO)
+
+temp[temp %in% 1:3] <- "Primeiro"
+temp[temp %in% 4:6] <- "Segundo"
+temp[temp %in% 7:9] <- "Terceiro"
+temp[temp %in% 10:12] <- "Quarto"
 mdl1_df["trimestre"] <- factor(temp)
 ```
 
 ### Avaliando o modelo
+
+```{r}
+mdl1 <- glm(ACIONAMENTO_DO_SEGURO ~ modalidade*idade -1, data=mdl1_df)
+```
+
