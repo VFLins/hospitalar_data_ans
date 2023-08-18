@@ -75,8 +75,8 @@ tidy_df <- temp[s1 & s2 & s3,] %>%
 agg_df$ACIONAMENTO_DO_SEGURO <- agg_df$VL_ITEM_PAGO_FORNECEDOR > 0
 
 # Obtendo informações sobre o balanceamento dos dados
-QTD_ACIONAMENTOS <- sum(df$ACIONAMENTO_DO_SEGURO)
-QTD_CASOS <- nrow(df)
+QTD_ACIONAMENTOS <- sum(agg_df$ACIONAMENTO_DO_SEGURO)
+QTD_CASOS <- nrow(agg_df)
 
 # Obtendo indices de `agg_df`
 df_index <- row.names(agg_df) %>% as.numeric()
@@ -316,7 +316,7 @@ Deve ser interessante ver como esta variável se relaciona com outras variáveis
 
 ------------------------------------------------------------------------
 
-# Relações e correlações
+# Relações e correlações {#relações-e-correlações}
 
 Para medir as relações entre as variáveis com a menor interferência possível, vamos criar um *data frame* com as variáveis numéricas e categóricas, e fazer algumas alterações para facilitar a nossa análise. Primeiramente vamos remover todos os valores faltantes e *outliers* da nossa amostra, e depois vamos incluir as versões transformadas que observamos anteriormente.
 
@@ -456,8 +456,8 @@ Os principais negócios interessados no valor deste conjunto de dados seriam as 
 agg_df$ACIONAMENTO_DO_SEGURO <- agg_df$VL_ITEM_PAGO_FORNECEDOR > 0
 
 # Obtendo informações sobre o balanceamento dos dados
-QTD_ACIONAMENTOS <- sum(df$ACIONAMENTO_DO_SEGURO)
-QTD_CASOS <- nrow(df)
+QTD_ACIONAMENTOS <- sum(agg_df$ACIONAMENTO_DO_SEGURO)
+QTD_CASOS <- nrow(agg_df)
 ```
 
 ### Seleção de variáveis
@@ -470,7 +470,8 @@ df_index <- row.names(agg_df) %>% as.numeric()
 
 # Obtendo indices das amostras balanceadas
 ### maximizando a quantidade de observações usando todos os casos positivos
-negative_sample_index <- sample(x=df_index[!agg_df$ACIONAMENTO_DO_SEGURO], size=QTD_ACIONAMENTOS)
+negative_sample_index <- sample(
+	x=df_index[!agg_df$ACIONAMENTO_DO_SEGURO], size=QTD_ACIONAMENTOS)
 positive_index <- df_index[agg_df$ACIONAMENTO_DO_SEGURO]
 mdl1_index <- c(negative_sample_index, positive_index)
 
@@ -524,8 +525,7 @@ mdl1_df["idade"] <- factor(temp)
 Por fim, percebemos também que os seguros são acionados menos vezes nos primeiros três meses do ano, em detrimento dos demais. Vamos agregar os dados em *`ANO_MES_EVENTO`* por trimestres, independentemente do ano.
 
 ```{r MDL1--FE-ANO_MES_EVENTO}
-get_month <- function(x) as.numeric(format(x, "%m"))
-temp <- get_month(mdl1_df$ANO_MES_EVENTO)
+temp <- mdl1_df$ANO_MES_EVENTO |> format("%m") |> as.integer()
 
 temp[temp %in% 1:3] <- "Primeiro"
 temp[temp %in% 4:6] <- "Segundo"
@@ -537,6 +537,8 @@ mdl1_df["trimestre"] <- factor(temp)
 ### Avaliando o modelo
 
 ```{r}
-mdl1 <- glm(ACIONAMENTO_DO_SEGURO ~ modalidade*idade -1, data=mdl1_df)
+mdl1_v1 <- glm(ACIONAMENTO_DO_SEGURO ~ modalidade*idade -1, data=mdl1_df)
+mdl1_v2 <- glm(ACIONAMENTO_DO_SEGURO ~ modalidade + idade * regiao, data=mdl1_df)
+mdl1_v3 <- glm(ACIONAMENTO_DO_SEGURO ~ idade * trimestre, data=mdl1_df)
+mdl1_v4 <- glm(ACIONAMENTO_DO_SEGURO ~ idade * trimestre * regiao, data=mdl1_df)
 ```
-
