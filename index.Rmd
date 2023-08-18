@@ -536,9 +536,27 @@ mdl1_df["trimestre"] <- factor(temp)
 
 ### Avaliando o modelo
 
+Vamos treinar alguns modelos de regressão logística para obter a melhor combinação de variáveis no trabalho de identificar a se um seguro será ou não acionado.
+
 ```{r}
+# exemplos de modelos testados
 mdl1_v1 <- glm(ACIONAMENTO_DO_SEGURO ~ modalidade*idade -1, data=mdl1_df)
-mdl1_v2 <- glm(ACIONAMENTO_DO_SEGURO ~ modalidade + idade * regiao, data=mdl1_df)
-mdl1_v3 <- glm(ACIONAMENTO_DO_SEGURO ~ idade * trimestre, data=mdl1_df)
-mdl1_v4 <- glm(ACIONAMENTO_DO_SEGURO ~ idade * trimestre * regiao, data=mdl1_df)
+mdl1_v2 <- glm(ACIONAMENTO_DO_SEGURO ~ modalidade * trimestre, data=mdl1_df)
+mdl1_v3 <- glm(ACIONAMENTO_DO_SEGURO ~ idade * trimestre * regiao, data=mdl1_df)
+mdl1_v4 <- glm(ACIONAMENTO_DO_SEGURO ~ modalidade + idade * regiao, data=mdl1_df)
+mdl1_v5 <- glm(ACIONAMENTO_DO_SEGURO ~ idade * modalidade * regiao, data=mdl1_df)
+mdl1_v6 <- glm(ACIONAMENTO_DO_SEGURO ~ idade + modalidade * regiao, data=mdl1_df)
+mdl1_v7 <- glm(ACIONAMENTO_DO_SEGURO ~ trimestre + modalidade * regiao, data=mdl1_df)
+mdl1_v8 <- glm(ACIONAMENTO_DO_SEGURO ~ trimestre + idade + modalidade * regiao, data=mdl1_df)
+mdl1_v9 <- glm(ACIONAMENTO_DO_SEGURO ~ idade + trimestre * modalidade * regiao, data=mdl1_df)
 ```
+
+Depois de passar um tempo testando as variáveis e suas interações, as melhores combinações são aquelas em que o `trimestre` e a `idade` não interagem com as demais variáveis, entre as modelagens listadas acima, as de número 6, 7 e 8 mostraram coeficientes estatisticamente mais significantes que os demais, por obedecerem esta condição.
+
+Usando o Critério de Informação de Akaike (AIC) como desempate, a formulação do `mdl1_v8` se mostrou a mais eficiente. Vamos considerar esta modelagem nas análises adiante, mas antes, vamos ver algumas estatísticas em relação à este modelo.
+
+```{r}
+mdl1 <- glm(ACIONAMENTO_DO_SEGURO ~ trimestre + idade + modalidade * regiao, data=mdl1_df)
+summary(mdl1)
+```
+
