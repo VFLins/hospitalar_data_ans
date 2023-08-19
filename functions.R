@@ -143,7 +143,7 @@ dist_transf_plot <- function(
 	lim <- c(
 		min=quantile(x,1/4,names=F)-IQR(x)*1.5, 
 		max=quantile(x,3/4,names=F)+IQR(x)*1.5)
-	if (trim_outlier) x <- x[x >= lim["min"] & x <= lim["max"]]
+	if (trim_outlier) x <- x[(x >= lim["min"]) & (x <= lim["max"])]
 	
 	df <- tibble(x); names(df) <- var_name
 	df %>% mutate(across(.fns=transf_funcs, .names="{.fn} de {.col}")) %>%
@@ -157,4 +157,10 @@ dist_transf_plot <- function(
 ncent <- function(sn, sN, inside=T, decimals=2){
 	if (inside) percentvalue <- format_numbers(sn*100/sN, decimals=decimals)
 	else percentvalue <- format_numbers(100-(sn*100/sN), decimals=decimals)
-	paste0(percentvalue, "%")}
+	paste0(percentvalue, "%")
+}
+
+# Obtem um dataframe com a uma combinação de tpr e fpr para cada recorte
+auc_curve <- function(predictions, actuals){
+	
+}
