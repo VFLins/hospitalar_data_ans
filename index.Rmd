@@ -18,8 +18,7 @@ output:
 
 #### carregando pacotes e scripts ####
 #====================================#
-knitr::opts_chunk$set(echo=TRUE)
-
+knitr::opts_chunk$set(include = FALSE)
 source("functions.R")
 source("texts.R")
 
