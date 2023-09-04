@@ -32,6 +32,8 @@ set.seed(3)
 library(plotly)
 library(flextable)
 library(tidyverse)
+library(randomForest)
+library(naivebayes)
 set_flextable_defaults(scroll=list())
 
 #### Carregando dados ####
@@ -561,9 +563,18 @@ Usando o Critério de Informação de Akaike (AIC) como desempate, a formulaçã
 mdl1 <- glm(ACIONAMENTO_DO_SEGURO ~ trimestre + idade + modalidade * regiao, data=mdl1_df)
 summary(mdl1)
 ```
-### Avaliando o modelo
+### Comparando a Regressão Logística com outros modelos
 
-Agora chegou a hora de descobrir como este modelo desempenha "no mundo real", vamos replicar o feature engineering fora do recorte de dados usado para treinar o modelo para descobrir o quão satisfatório é o seu poder preditivo.
+Vamos adicionar mais alguns modelos com a mesma configuração de variáveis, para este caso, vamos incluir os modelos "Naive Bayes" e "Random Forest". Este último é conhecido na literatura por ser usado em modelagens de Churn e desempenhar bem, comparado com os demais que estamos usando.
+
+```{r warning=FALSE}
+mdl1_nb <- naive_bayes(ACIONAMENTO_DO_SEGURO ~ trimestre + idade + modalidade * regiao, data=mdl1_df)
+mdl1_rf <- randomForest(ACIONAMENTO_DO_SEGURO ~ trimestre + idade + modalidade * regiao, data=mdl1_df)
+```
+
+A métrica de Akaike foi muito útil para escolher entre as regressões logísticas, mas não vai ser útil para comparar a regressão com os demais modelos, para isto, vamos computar a Área Sob a Curva ROC (AUC), esta curva delimita a relação de custo/recompensa de verdadeiro-positivo e falso-positivo para cada limiar de probabilidade de acionamento do seguro escolhida.
+
+Para aumentar a quantidade de verdadeiro-positivos, um limiar de probabilidade mais alto deve ser escolhido, mas ao custo de aumentar o número de falso-positivos. Esta "taxa de troca" não é constante, por isso se trata de uma curva, e quanto maior a àrea sob esta curva, melhor o modelo se ajusta para toda combinação de limiares possíveis. Vamos obter a curva ROC considerando dados em `df`, que representam melhor as condições dos dados na vida real, para isto, vamos replicar o *feature engineering* que fizemos antes:
 
 ```{r}
 df$ACIONAMENTO_DO_SEGURO <- df$VL_ITEM_PAGO_FORNECEDOR > 0
@@ -597,8 +608,26 @@ temp[temp %in% 4:6] <- "Segundo"
 temp[temp %in% 7:9] <- "Terceiro"
 temp[temp %in% 10:12] <- "Quarto"
 df["trimestre"] <- factor(temp)
+```
 
-mdl1_predict <- predict.glm(mdl1, df)
+Agora podemos obter os valores das previsões de cada modelo, e colocá-las lado a lado em um *data frame*:
+
+```{r warning=FALSE}
+predictions <- data.frame(
+	y=df$ACIONAMENTO_DO_SEGURO,
+	regressao_logistica=predict.glm(mdl1, df),
+	naive_bayes=predict(mdl1_nb, df, type="prob"),
+	random_forest=predict(mdl1_rf, df)
+)
+```
+
+
+### Avaliando o modelo escolhido
+
+Agora chegou a hora de descobrir como este modelo desempenha "no mundo real", vamos replicar o feature engineering fora do recorte de dados usado para treinar o modelo para descobrir o quão satisfatório é o seu poder preditivo.
+
+```{r}
+mdl1_predict <- predict.glm(mdl1, mdl1_df)
 ```
 
 ```{r}
