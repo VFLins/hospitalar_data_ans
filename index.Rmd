@@ -613,14 +613,26 @@ df["trimestre"] <- factor(temp)
 Agora podemos obter os valores das previsões de cada modelo, e colocá-las lado a lado em um *data frame*:
 
 ```{r warning=FALSE}
-predictions <- data.frame(
+pred_df <- data.frame(
 	y=df$ACIONAMENTO_DO_SEGURO,
-	regressao_logistica=predict.glm(mdl1, df),
-	naive_bayes=predict(mdl1_nb, df, type="prob"),
-	random_forest=predict(mdl1_rf, df)
+	logreg=predict(mdl1, df),
+	naiveb=predict(mdl1_nb, df, type="prob"),
+	rndfst=predict(mdl1_rf, df)
 )
 ```
 
+E em seguida obter as métricas para cada limiar possível:
+
+```{r}
+thresholds <- c(1:99)/100
+logreg_fpr <- c(); logreg_tpr <- c()
+naiveb_fpr <- c(); naiveb_tpr <- c()
+rndfst_fpr <- c(); rndfst_tpr <- c()
+for (i in thresholds) {
+	
+	logreg_fpr <- c(logreg_fpr, (pred_df$logreg >= i))
+}
+```
 
 ### Avaliando o modelo escolhido
 
