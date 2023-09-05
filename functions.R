@@ -160,7 +160,39 @@ ncent <- function(sn, sN, inside=T, decimals=2){
 	paste0(percentvalue, "%")
 }
 
-# Obtem um dataframe com a uma combinação de tpr e fpr para cada recorte
-auc_curve <- function(predictions, actuals){
+# Retorna uma matriz de confusão em formato de array
+confusion_matrix <- function(response_prob, actuals, threshold=0.5){
+	predictions <- (response_prob >= threshold)
+	cm <- c()
+	cm["tp"] = sum(predictions & actuals)
+	cm["fp"] = sum(predictions & !actuals)
+	cm["tn"] = sum(!predictions & !actuals)
+	cm["fn"] = sum(!predictions & actuals)
+	return(cm)
+}
+
+# Obtem um dataframe com as probabilidades previstas e um vetor com as previsões
+# Retorna um dataframe com tpr e fpr para cada combinação de threshold e modelo
+auc_curve <- function(responses_prob_df, actuals){
+	responses_prob_df <- as.data.frame(responses_prob_df)
+	thresholds <- c(1:99)/100
+	out <- data.frame(thresholds=thresholds)
+	col_names <- c('thresholds')
 	
+	for (mdl in colnames(responses_prob_df)) {
+		tpr <- c()
+		fpr <- c()
+		
+		for (i in thresholds) {
+			cm <- confusion_matrix(responses_prob_df[mdl], actuals, i)
+			tpr <- append(tpr, cm[["tp"]]/(cm[["tp"]] + cm[["fn"]]))
+			fpr <- append(fpr, cm[["fp"]]/(cm[["fp"]] + cm[["tn"]]))
+		}
+		tpr_name = paste0(mdl, "_tpr")
+		fpr_name = paste0(mdl, "_fpr")
+		col_names <- append(col_names, c(tpr_name, fpr_name))
+		out <- cbind(out, data.frame(tpr, fpr))
+		colnames(out) <- col_names
+	}
+	return(out)
 }
