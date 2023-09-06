@@ -100,6 +100,78 @@ mdl1_cols <- c(
 
 # Criando novo dataframe com valores de "ACIONAMENTO_DO_SEGURO" balanceados
 mdl1_df <- agg_df[mdl1_index, mdl1_cols]
+
+# Feature engineering nos dados de treinamento
+temp <- mdl1_df$NM_MODALIDADE
+temp[temp %in% c("Cooperativa Médica", "Medicina De Grupo")] <- "Cooperativa"
+temp[temp %in% c("Seguradora Especializada Em Saúde", 
+					  "Filantropia", "Autogestão", NA)] <- "Não-cooperativa"
+mdl1_df["modalidade"] <- factor(temp)
+
+temp <- mdl1_df$UF_PRESTADOR
+temp[temp %in% c("MA", "PI", "CE", "RN", "PB", "PE", "AL", "SE", "BA")] <- "Nordeste"
+temp[temp %in% c("AC", "AP", "AM", "PA", "RO", "RR", "TO")] <- "Norte"
+temp[temp %in% c("GO", "MT", "MS", "DF")] <- "Centro-Oeste"
+temp[temp %in% c("ES", "RJ", "SP", "MG")] <- "Sudeste"
+temp[temp %in% c("PR", "RS", "SC")] <- "Sul"
+mdl1_df["regiao"] <- factor(temp)
+
+temp <- mdl1_df$FAIXA_ETARIA
+temp[temp %in% c("Não identificado", NA)] <- "Não Identificado"
+temp[temp %in% c("<1", "1 a 4", "5 a 9")] <- "Crianças"
+temp[temp %in% c("10 a 14", "15 a 19", "20 a 29", 
+					  "30 a 39", "40 a 49", "50 a 59")] <- "Jovens/Adultos"
+temp[temp %in% c("60 a 69", "70 a 79", "80 ou mais")] <- "Idosos"
+mdl1_df["idade"] <- factor(temp)
+
+temp <- mdl1_df$ANO_MES_EVENTO |> format("%m") |> as.integer()
+temp[temp %in% 1:3] <- "Primeiro"
+temp[temp %in% 4:6] <- "Segundo"
+temp[temp %in% 7:9] <- "Terceiro"
+temp[temp %in% 10:12] <- "Quarto"
+mdl1_df["trimestre"] <- factor(temp)
+
+mdl_lg <- glm(ACIONAMENTO_DO_SEGURO ~ trimestre + idade + modalidade * regiao, data=mdl1_df)
+mdl1_nb <- naive_bayes(ACIONAMENTO_DO_SEGURO ~ trimestre + idade + modalidade * regiao, data=mdl1_df)
+mdl1_rf <- randomForest(ACIONAMENTO_DO_SEGURO ~ trimestre + idade + modalidade * regiao, data=mdl1_df)
+
+#### Avaliação do modelo ####
+#===========================#
+
+# Feature engineering nos dados de teste 
+df$ACIONAMENTO_DO_SEGURO <- df$VL_ITEM_PAGO_FORNECEDOR > 0
+
+temp <- df$NM_MODALIDADE
+temp[temp %in% c("Cooperativa Médica", "Medicina De Grupo")] <- "Cooperativa"
+temp[temp %in% c("Seguradora Especializada Em Saúde", 
+					  "Filantropia", "Autogestão", NA)] <- "Não-cooperativa"
+df["modalidade"] <- factor(temp)
+
+temp <- df$UF_PRESTADOR
+temp[temp %in% c("MA", "PI", "CE", "RN", "PB", "PE", "AL", "SE", "BA")] <- "Nordeste"
+temp[temp %in% c("AC", "AP", "AM", "PA", "RO", "RR", "TO")] <- "Norte"
+temp[temp %in% c("GO", "MT", "MS", "DF")] <- "Centro-Oeste"
+temp[temp %in% c("ES", "RJ", "SP", "MG")] <- "Sudeste"
+temp[temp %in% c("PR", "RS", "SC")] <- "Sul"
+df["regiao"] <- factor(temp)
+
+temp <- df$FAIXA_ETARIA
+temp[temp %in% c("Não identificado", NA)] <- "Não Identificado"
+temp[temp %in% c("<1", "1 a 4", "5 a 9")] <- "Crianças"
+temp[temp %in% c("10 a 14", "15 a 19", "20 a 29", 
+					  "30 a 39", "40 a 49", "50 a 59")] <- "Jovens/Adultos"
+temp[temp %in% c("60 a 69", "70 a 79", "80 ou mais")] <- "Idosos"
+df["idade"] <- factor(temp)
+
+temp <- df$ANO_MES_EVENTO |> as.Date() |> format("%m") |> as.integer()
+
+temp[temp %in% 1:3] <- "Primeiro"
+temp[temp %in% 4:6] <- "Segundo"
+temp[temp %in% 7:9] <- "Terceiro"
+temp[temp %in% 10:12] <- "Quarto"
+df["trimestre"] <- factor(temp)
+
+
 ```
 
 # Introdução
@@ -560,16 +632,16 @@ Depois de passar um tempo testando as variáveis e suas interações, as melhore
 Usando o Critério de Informação de Akaike (AIC) como desempate, a formulação do `mdl1_v8` se mostrou a mais eficiente. Vamos considerar esta modelagem nas análises adiante, mas antes, vamos ver algumas estatísticas em relação à este modelo.
 
 ```{r}
-mdl1 <- glm(ACIONAMENTO_DO_SEGURO ~ trimestre + idade + modalidade * regiao, data=mdl1_df)
-summary(mdl1)
+mdl_lg <- glm(ACIONAMENTO_DO_SEGURO ~ trimestre + idade + modalidade * regiao, data=mdl1_df)
+summary(mdl_lg)
 ```
 ### Comparando a Regressão Logística com outros modelos
 
 Vamos adicionar mais alguns modelos com a mesma configuração de variáveis, para este caso, vamos incluir os modelos "Naive Bayes" e "Random Forest". Este último é conhecido na literatura por ser usado em modelagens de Churn e desempenhar bem, comparado com os demais que estamos usando.
 
 ```{r warning=FALSE}
-mdl1_nb <- naive_bayes(ACIONAMENTO_DO_SEGURO ~ trimestre + idade + modalidade * regiao, data=mdl1_df)
-mdl1_rf <- randomForest(ACIONAMENTO_DO_SEGURO ~ trimestre + idade + modalidade * regiao, data=mdl1_df)
+mdl_nb <- naive_bayes(ACIONAMENTO_DO_SEGURO ~ trimestre + idade + modalidade * regiao, data=mdl1_df)
+mdl_rf <- randomForest(ACIONAMENTO_DO_SEGURO ~ trimestre + idade + modalidade * regiao, data=mdl1_df)
 ```
 
 A métrica de Akaike foi muito útil para escolher entre as regressões logísticas, mas não vai ser útil para comparar a regressão com os demais modelos, para isto, vamos computar a Área Sob a Curva ROC (AUC), esta curva delimita a relação de custo/recompensa de verdadeiro-positivo e falso-positivo para cada limiar de probabilidade de acionamento do seguro escolhida.
@@ -615,24 +687,32 @@ Agora podemos obter os valores das previsões de cada modelo, e colocá-las lado
 ```{r warning=FALSE}
 pred_df <- data.frame(
 	y=df$ACIONAMENTO_DO_SEGURO,
-	logreg=predict(mdl1, df),
-	naiveb=predict(mdl1_nb, df, type="prob"),
-	rndfst=predict(mdl1_rf, df)
+	Regressao.Logistica=predict(mdl_lg, df),
+	Naive.Bayes=predict(mdl_nb, df, type="prob")[, "TRUE"],
+	Random.Forest=predict(mdl_rf, df)
 )
 ```
 
-E em seguida obter as métricas para cada limiar possível:
+E em seguida obter as métricas para cada limiar possível, e elaborar uma visualização:
 
-```{r}
-thresholds <- c(1:99)/100
-logreg_fpr <- c(); logreg_tpr <- c()
-naiveb_fpr <- c(); naiveb_tpr <- c()
-rndfst_fpr <- c(); rndfst_tpr <- c()
-for (i in thresholds) {
-	
-	logreg_fpr <- c(logreg_fpr, (pred_df$logreg >= i))
-}
+```{r plot--ROC_MODELS}
+temp <- roc_curve(
+	pred_df[c("Regressao.Logistica", "Naive.Bayes", "Random.Forest")], 
+	pred_df$y
+)
+
+Diagonal = seq(0, 1, length.out=99)
+p <- ggplot(temp) + 
+	geom_point(aes(x=Regressao.Logistica_fpr, y=Regressao.Logistica_tpr), color="red4", size=2) +
+	geom_point(aes(x=Naive.Bayes_fpr, y=Naive.Bayes_tpr), color="#b66868", size=2) +
+	geom_point(aes(x=Random.Forest_fpr, y=Random.Forest_tpr), color="tomato2", size=2) +
+	geom_line(aes(x=Diagonal, y=Diagonal), color="gray30", linetype="dotted") +
+	ylab("True positive rate") + xlab(NULL) + ggtitle("Curvas ROC para cada modelo") +
+	my_ggtheme()
+ggplotly(p)
 ```
+
+O resultado é tão similar para os modelos que eu tive que usar pontos na visualização em vez de linhas para ter alguma maneira de diferenciar as curvas, mantendo o mesmo arranjo de variáveis em diferentes modelos, o resultado final deve variar muito pouco. Dito isto, vamos continuar com o modelo original de **Regressão Logística**.
 
 ### Avaliando o modelo escolhido
 
