@@ -36,142 +36,7 @@ library(randomForest)
 library(naivebayes)
 set_flextable_defaults(scroll=list())
 
-#### Carregando dados ####
-#========================#
-# tabela unificada
-df <- readRDS("pda_tiss_hosp_mini.rds")
-
-# corrigindo valores ausentes
-temp <- df[, c("VL_ITEM_EVENTO_INFORMADO", "VL_ITEM_PAGO_FORNECEDOR")]
-temp[is.na(temp)] <- 0
-df[, c("VL_ITEM_EVENTO_INFORMADO", "VL_ITEM_PAGO_FORNECEDOR")] <- temp
-
-# dados com variaveis numericas de interesse agregadas por ocorrencia
-aggnum_df <- df[,c(id_var, numeric_vars)] %>% 
-	group_by(ID_EVENTO_ATENCAO_SAUDE) %>% 
-	summarise(
-		VL_TOTAL_ITENS_INFORMADOS=sum(QT_ITEM_EVENTO_INFORMADO*VL_ITEM_EVENTO_INFORMADO),
-		VL_ITEM_PAGO_FORNECEDOR=sum(VL_ITEM_PAGO_FORNECEDOR),
-		TEMPO_DE_PERMANENCIA=max(TEMPO_DE_PERMANENCIA))
-
-# dados com variaveis categoricas de interesse agregadas por ocorrencia
-aggcat_df <-  df[,c(id_var, categorical_vars)] %>% 
-	group_by(ID_EVENTO_ATENCAO_SAUDE) %>%
-	summarise_at(categorical_vars, max) %>%
-	mutate(ANO_MES_EVENTO=zoo::as.yearmon(ANO_MES_EVENTO))
-
-# tabela agregada
-agg_df <- inner_join(aggcat_df, aggnum_df, by="ID_EVENTO_ATENCAO_SAUDE")
-
-# dados sem outliers e sem valores ausentes
-temp <- na.omit(agg_df)
-s1 <- IQRsel(temp$VL_TOTAL_ITENS_INFORMADOS, sel=T)
-s2 <- IQRsel(temp$VL_ITEM_PAGO_FORNECEDOR, sel=T)
-s3 <- IQRsel(temp$TEMPO_DE_PERMANENCIA, sel=T)
-
-tidy_df <- temp[s1 & s2 & s3,] %>% 
-	mutate(
-		log.valor_item_inf = log(VL_TOTAL_ITENS_INFORMADOS+1),
-		log.valor_pago_forn = log(VL_ITEM_PAGO_FORNECEDOR+1),
-		TEMPO_DE_PERMANENCIA = abs(TEMPO_DE_PERMANENCIA))
-
-#### Modelagem ####
-#=================#
-# Criando variavel target
-agg_df$ACIONAMENTO_DO_SEGURO <- agg_df$VL_ITEM_PAGO_FORNECEDOR > 0
-
-# Obtendo informações sobre o balanceamento dos dados
-QTD_ACIONAMENTOS <- sum(agg_df$ACIONAMENTO_DO_SEGURO)
-QTD_CASOS <- nrow(agg_df)
-
-# Obtendo indices de `agg_df`
-df_index <- row.names(agg_df) %>% as.numeric()
-
-# Obtendo indices das amostras balanceadas
-### maximizando a quantidade de observações usando todos os casos positivos
-negative_sample_index <- sample(x=df_index[!agg_df$ACIONAMENTO_DO_SEGURO], size=QTD_ACIONAMENTOS)
-positive_index <- df_index[agg_df$ACIONAMENTO_DO_SEGURO]
-mdl1_index <- c(negative_sample_index, positive_index)
-
-# Selecionando variáveis úteis
-mdl1_cols <- c(
-	"NM_MODALIDADE", "UF_PRESTADOR", "FAIXA_ETARIA", 
-	"ANO_MES_EVENTO", "ACIONAMENTO_DO_SEGURO")
-
-# Criando novo dataframe com valores de "ACIONAMENTO_DO_SEGURO" balanceados
-mdl1_df <- agg_df[mdl1_index, mdl1_cols]
-
-# Feature engineering nos dados de treinamento
-temp <- mdl1_df$NM_MODALIDADE
-temp[temp %in% c("Cooperativa Médica", "Medicina De Grupo")] <- "Cooperativa"
-temp[temp %in% c("Seguradora Especializada Em Saúde", 
-					  "Filantropia", "Autogestão", NA)] <- "Não-cooperativa"
-mdl1_df["modalidade"] <- factor(temp)
-
-temp <- mdl1_df$UF_PRESTADOR
-temp[temp %in% c("MA", "PI", "CE", "RN", "PB", "PE", "AL", "SE", "BA")] <- "Nordeste"
-temp[temp %in% c("AC", "AP", "AM", "PA", "RO", "RR", "TO")] <- "Norte"
-temp[temp %in% c("GO", "MT", "MS", "DF")] <- "Centro-Oeste"
-temp[temp %in% c("ES", "RJ", "SP", "MG")] <- "Sudeste"
-temp[temp %in% c("PR", "RS", "SC")] <- "Sul"
-mdl1_df["regiao"] <- factor(temp)
-
-temp <- mdl1_df$FAIXA_ETARIA
-temp[temp %in% c("Não identificado", NA)] <- "Não Identificado"
-temp[temp %in% c("<1", "1 a 4", "5 a 9")] <- "Crianças"
-temp[temp %in% c("10 a 14", "15 a 19", "20 a 29", 
-					  "30 a 39", "40 a 49", "50 a 59")] <- "Jovens/Adultos"
-temp[temp %in% c("60 a 69", "70 a 79", "80 ou mais")] <- "Idosos"
-mdl1_df["idade"] <- factor(temp)
-
-temp <- mdl1_df$ANO_MES_EVENTO |> format("%m") |> as.integer()
-temp[temp %in% 1:3] <- "Primeiro"
-temp[temp %in% 4:6] <- "Segundo"
-temp[temp %in% 7:9] <- "Terceiro"
-temp[temp %in% 10:12] <- "Quarto"
-mdl1_df["trimestre"] <- factor(temp)
-
-mdl_lg <- glm(ACIONAMENTO_DO_SEGURO ~ trimestre + idade + modalidade * regiao, data=mdl1_df)
-mdl1_nb <- naive_bayes(ACIONAMENTO_DO_SEGURO ~ trimestre + idade + modalidade * regiao, data=mdl1_df)
-mdl1_rf <- randomForest(ACIONAMENTO_DO_SEGURO ~ trimestre + idade + modalidade * regiao, data=mdl1_df)
-
-#### Avaliação do modelo ####
-#===========================#
-
-# Feature engineering nos dados de teste 
-df$ACIONAMENTO_DO_SEGURO <- df$VL_ITEM_PAGO_FORNECEDOR > 0
-
-temp <- df$NM_MODALIDADE
-temp[temp %in% c("Cooperativa Médica", "Medicina De Grupo")] <- "Cooperativa"
-temp[temp %in% c("Seguradora Especializada Em Saúde", 
-					  "Filantropia", "Autogestão", NA)] <- "Não-cooperativa"
-df["modalidade"] <- factor(temp)
-
-temp <- df$UF_PRESTADOR
-temp[temp %in% c("MA", "PI", "CE", "RN", "PB", "PE", "AL", "SE", "BA")] <- "Nordeste"
-temp[temp %in% c("AC", "AP", "AM", "PA", "RO", "RR", "TO")] <- "Norte"
-temp[temp %in% c("GO", "MT", "MS", "DF")] <- "Centro-Oeste"
-temp[temp %in% c("ES", "RJ", "SP", "MG")] <- "Sudeste"
-temp[temp %in% c("PR", "RS", "SC")] <- "Sul"
-df["regiao"] <- factor(temp)
-
-temp <- df$FAIXA_ETARIA
-temp[temp %in% c("Não identificado", NA)] <- "Não Identificado"
-temp[temp %in% c("<1", "1 a 4", "5 a 9")] <- "Crianças"
-temp[temp %in% c("10 a 14", "15 a 19", "20 a 29", 
-					  "30 a 39", "40 a 49", "50 a 59")] <- "Jovens/Adultos"
-temp[temp %in% c("60 a 69", "70 a 79", "80 ou mais")] <- "Idosos"
-df["idade"] <- factor(temp)
-
-temp <- df$ANO_MES_EVENTO |> as.Date() |> format("%m") |> as.integer()
-
-temp[temp %in% 1:3] <- "Primeiro"
-temp[temp %in% 4:6] <- "Segundo"
-temp[temp %in% 7:9] <- "Terceiro"
-temp[temp %in% 10:12] <- "Quarto"
-df["trimestre"] <- factor(temp)
-
-
+source("setup.R")
 ```
 
 # Introdução
@@ -211,11 +76,6 @@ aggcat_df <-  df[,c(id_var, categorical_vars)] %>%
 
 # tabela agregada
 agg_df <- inner_join(aggcat_df, aggnum_df, by="ID_EVENTO_ATENCAO_SAUDE")
-
-# dados para treinamento de modelo
-tdf <- slice_sample(agg_df, prop=0.8)
-# dados para avaliação de modelo
-adf <- agg_df[!{agg_df$ID_EVENTO_ATENCAO_SAUDE %in% tdf$ID_EVENTO_ATENCAO_SAUDE},]
 ```
 
 ------------------------------------------------------------------------
@@ -510,7 +370,7 @@ ggplotly(p)
 
 Como esperado, as idades maiores estão mais relacionadas à maior tempo de internação, os requisitos mencionados anteriormente podem estar relacionados com a adoção de preços significativamente mais altos para clientes com idades mais altas. Curiosamente os infantes com idade menor que 5 anos também estão entre os que passam mais tempo internados.
 
-```{r plot--FAXIXA-ETARIA-VS-TEMPO-DE-PERMANENCIA}
+```{r plot--FAIXA-ETARIA-VS-TEMPO-DE-PERMANENCIA}
 p <- ggplot(tidy_df, aes(y=TEMPO_DE_PERMANENCIA, x=FAIXA_ETARIA)) +
 	geom_boxplot(fill=cores[6], color=cores[3]) +
 	my_ggtheme() + xlab(NULL) + coord_flip()
@@ -529,7 +389,7 @@ As variáveis mais indicadas para alimentar um modelo de previsão já foram dis
 
 Os principais negócios interessados no valor deste conjunto de dados seriam as empresas seguradoras de saúde, estas estariam principalmente em prever se haveria necessidade de transferir algum recurso para a fornecedora de saúde. Para isso, vamos adicionar uma variável-alvo que represente o evento de acionamento do seguro.
 
-```{r MDL1--TARGET-VARIABLE, eval=FALSE}
+```{r mirror--TARGET-VARIABLE, eval=FALSE}
 # Criando variavel target
 agg_df$ACIONAMENTO_DO_SEGURO <- agg_df$VL_ITEM_PAGO_FORNECEDOR > 0
 
@@ -542,7 +402,7 @@ QTD_CASOS <- nrow(agg_df)
 
 A próxima etapa é escolher as variáveis que podem ajudar nosso modelo preditivo a chegar na resposta esperada com tempestividade. Mas apenas depois que obtivermos um conjunto de dados balanceados, pois apenas `r round(QTD_ACIONAMENTOS/QTD_CASOS*100, 2) |> paste0("%")` das ocorreências registradas apresentam acionamento de seguro, para evitar vieses, o efeito da simples quantidade de observações não pode ser maior que a presença das variáveis explicativas.
 
-```{r MDL1--BALANCING-DATASET, eval=FALSE}
+```{r mirror--BALANCING-DATASET, eval=FALSE}
 # Obtendo indices de `agg_df`
 df_index <- row.names(agg_df) %>% as.numeric()
 
@@ -568,7 +428,7 @@ Já aprendemos [anteriormente](#relações-e-correlações) como estas variávei
 
 Começando pelo *`NM_MODALIDADE`*, sabemos que "Cooperativa médica" e "Medicina de Grupo" são os tipos de prestadoras com uma maior proporção de acionamentos de seguros, portanto vamos reduzir esta variável para apenas dois níveis, um para o caso de participar de alguma delas, outro para o caso contrário.
 
-```{r MDL1--FE-NM_MODALIDADE}
+```{r mirror--FE-NM_MODALIDADE, eval=FALSE}
 temp <- mdl1_df$NM_MODALIDADE
 temp[temp %in% c("Cooperativa Médica", "Medicina De Grupo")] <- "Cooperativa"
 temp[temp %in% c("Seguradora Especializada Em Saúde", 
@@ -578,7 +438,7 @@ mdl1_df["modalidade"] <- factor(temp)
 
 Percebemos também que em *`UF_PRESTADOR`*, os estados do nordeste se tornam mais presentes em relação aos demais, portanto reduzir os estados às suas regiões já deve ser suficiente.
 
-```{r MDL1--FE-UF_PRESTADOR}
+```{r mirror--FE-UF_PRESTADOR, eval=FALSE}
 temp <- mdl1_df$UF_PRESTADOR
 temp[temp %in% c("MA", "PI", "CE", "RN", "PB", "PE", "AL", "SE", "BA")] <- "Nordeste"
 temp[temp %in% c("AC", "AP", "AM", "PA", "RO", "RR", "TO")] <- "Norte"
@@ -590,7 +450,7 @@ mdl1_df["regiao"] <- factor(temp)
 
 Embora os mais idosos estejam entre os mais atendidos pelos fornecedores, os adultos estão entre os maiores acionadores de seguro, vamos reduzir esta quantidade excessiva de *`FAIXA_ETARIA`* em apenas 3 (crianças, jovens/adultos e idosos), os casos não identificados formarão um quarto grupo.
 
-```{r MDL1--FE-FAIXA_ETARIA}
+```{r mirror--FE-FAIXA_ETARIA, eval=FALSE}
 temp <- mdl1_df$FAIXA_ETARIA
 temp[temp %in% c("Não identificado", NA)] <- "Não Identificado"
 temp[temp %in% c("<1", "1 a 4", "5 a 9")] <- "Crianças"
@@ -602,7 +462,7 @@ mdl1_df["idade"] <- factor(temp)
 
 Por fim, percebemos também que os seguros são acionados menos vezes nos primeiros três meses do ano, em detrimento dos demais. Vamos agregar os dados em *`ANO_MES_EVENTO`* por trimestres, independentemente do ano.
 
-```{r MDL1--FE-ANO_MES_EVENTO}
+```{r mirror--MDL1--FE-ANO_MES_EVENTO, eval=FALSE}
 temp <- mdl1_df$ANO_MES_EVENTO |> format("%m") |> as.integer()
 
 temp[temp %in% 1:3] <- "Primeiro"
@@ -614,7 +474,7 @@ mdl1_df["trimestre"] <- factor(temp)
 
 Vamos treinar alguns modelos de regressão logística para obter a melhor combinação de variáveis no trabalho de identificar a se um seguro será ou não acionado.
 
-```{r}
+```{r mirror--MODELS_SETUP, eval=FALSE}
 # exemplos de modelos testados
 mdl1_v1 <- glm(ACIONAMENTO_DO_SEGURO ~ modalidade*idade -1, data=mdl1_df)
 mdl1_v2 <- glm(ACIONAMENTO_DO_SEGURO ~ modalidade * trimestre, data=mdl1_df)
@@ -631,7 +491,7 @@ Depois de passar um tempo testando as variáveis e suas interações, as melhore
 
 Usando o Critério de Informação de Akaike (AIC) como desempate, a formulação do `mdl1_v8` se mostrou a mais eficiente. Vamos considerar esta modelagem nas análises adiante, mas antes, vamos ver algumas estatísticas em relação à este modelo.
 
-```{r}
+```{r SELECTED_MODEL_STATS}
 mdl_lg <- glm(ACIONAMENTO_DO_SEGURO ~ trimestre + idade + modalidade * regiao, data=mdl1_df)
 summary(mdl_lg)
 ```
@@ -639,7 +499,7 @@ summary(mdl_lg)
 
 Vamos adicionar mais alguns modelos com a mesma configuração de variáveis, para este caso, vamos incluir os modelos "Naive Bayes" e "Random Forest". Este último é conhecido na literatura por ser usado em modelagens de Churn e desempenhar bem, comparado com os demais que estamos usando.
 
-```{r warning=FALSE}
+```{r ALTERNATIVE_MODELS, warning=FALSE}
 mdl_nb <- naive_bayes(ACIONAMENTO_DO_SEGURO ~ trimestre + idade + modalidade * regiao, data=mdl1_df)
 mdl_rf <- randomForest(ACIONAMENTO_DO_SEGURO ~ trimestre + idade + modalidade * regiao, data=mdl1_df)
 ```
@@ -648,7 +508,7 @@ A métrica de Akaike foi muito útil para escolher entre as regressões logísti
 
 Para aumentar a quantidade de verdadeiro-positivos, um limiar de probabilidade mais alto deve ser escolhido, mas ao custo de aumentar o número de falso-positivos. Esta "taxa de troca" não é constante, por isso se trata de uma curva, e quanto maior a àrea sob esta curva, melhor o modelo se ajusta para toda combinação de limiares possíveis. Vamos obter a curva ROC considerando dados em `df`, que representam melhor as condições dos dados na vida real, para isto, vamos replicar o *feature engineering* que fizemos antes:
 
-```{r}
+```{r mirror--DF_FEATURE_ENGINEERING, eval=FALSE}
 df$ACIONAMENTO_DO_SEGURO <- df$VL_ITEM_PAGO_FORNECEDOR > 0
 
 temp <- df$NM_MODALIDADE
@@ -684,7 +544,7 @@ df["trimestre"] <- factor(temp)
 
 Agora podemos obter os valores das previsões de cada modelo, e colocá-las lado a lado em um *data frame*:
 
-```{r warning=FALSE}
+```{r mirror--PREDICTIONS_TABLE, warning=FALSE}
 pred_df <- data.frame(
 	y=df$ACIONAMENTO_DO_SEGURO,
 	Regressao.Logistica=predict(mdl_lg, df),
@@ -719,11 +579,11 @@ O resultado é tão similar para os modelos que eu tive que usar pontos na visua
 Agora chegou a hora de descobrir como este modelo desempenha "no mundo real", vamos replicar o feature engineering fora do recorte de dados usado para treinar o modelo para descobrir o quão satisfatório é o seu poder preditivo.
 
 ```{r}
-mdl1_predict <- predict.glm(mdl1, mdl1_df)
+#mdl1_predict <- predict.glm(mdl1, mdl1_df)
 ```
 
 ```{r}
-a <- (mdl1_predict > .999)
-sum(a == df$ACIONAMENTO_DO_SEGURO)
+#a <- (mdl1_predict > .999)
+#sum(a == df$ACIONAMENTO_DO_SEGURO)
 ```
 
