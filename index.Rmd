@@ -14,14 +14,14 @@ output:
     fig_height: 4
 ---
 
-```{r setup}
+```{r setup, warning=FALSE, message=FALSE}
 
 #### carregando pacotes e scripts ####
 #====================================#
 knitr::opts_chunk$set(
+	echo = TRUE,
 	message = FALSE,
-	warning = FALSE,
-	include = FALSE
+	warning = FALSE
 )
 source("functions.R")
 source("texts.R")
