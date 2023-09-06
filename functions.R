@@ -173,7 +173,7 @@ confusion_matrix <- function(response_prob, actuals, threshold=0.5){
 
 # Obtem um dataframe com as probabilidades previstas e um vetor com as previsões
 # Retorna um dataframe com tpr e fpr para cada combinação de threshold e modelo
-auc_curve <- function(responses_prob_df, actuals){
+roc_curve <- function(responses_prob_df, actuals){
 	responses_prob_df <- as.data.frame(responses_prob_df)
 	thresholds <- c(1:99)/100
 	out <- data.frame(thresholds=thresholds)
