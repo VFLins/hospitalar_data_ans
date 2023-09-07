@@ -23,8 +23,6 @@ knitr::opts_chunk$set(
 	message = FALSE,
 	warning = FALSE
 )
-source("functions.R")
-source("texts.R")
 
 options(outDec=",",big.mark=".")
 set.seed(3)
@@ -36,7 +34,9 @@ library(randomForest)
 library(naivebayes)
 set_flextable_defaults(scroll=list())
 
-source("setup.R")
+source("scripts/functions.R")
+source("scripts/texts.R")
+source("scripts/setup.R")
 ```
 
 # Introdução
