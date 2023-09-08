@@ -196,3 +196,27 @@ roc_curve <- function(responses_prob_df, actuals){
 	}
 	return(out)
 }
+
+select_balanced 
+
+# Obtém um vetor com modelos compatíveis com `stats::predict()` e um conjunto de dados
+# Retorna um conjunto de dados de validação cruzada no método k-folds com repetições
+cv_data <- function(models, dataset, balanced_for=NULL, n_folds=10L, n_repeats=3L, p=0.5){
+	data_index <- 1:nrow(dataset)
+	TRAIN_SIZE <- as.integer(nrow(dataset) * ((n_folds-1)/n_folds))
+	#definindo critérios para balancear os dados
+	if (!is.null(balanced_for)) {
+		bal_var <- dataset[[balanced_for]]
+		bal_unique_freqs <- table(bal_var)
+		MAX_BALANCED_SIZE <- min(bal_unique_freqs) * length(bal_unique_freqs) * p
+	} else {
+		MAX_BALANCED_SIZE <- TRAIN_SIZE
+	}
+	
+	for (repeats in 1:n_repeats){
+		for (fold in 1:n_folds){
+			train_smp <- sample(data_index, MAX_BALANCED_SIZE)
+			test_smp <- data_index[!(data_index %in% train_smp)]
+		}
+	}
+}
