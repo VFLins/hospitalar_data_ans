@@ -197,26 +197,65 @@ roc_curve <- function(responses_prob_df, actuals){
 	return(out)
 }
 
-select_balanced 
-
 # Obtém um vetor com modelos compatíveis com `stats::predict()` e um conjunto de dados
 # Retorna um conjunto de dados de validação cruzada no método k-folds com repetições
 cv_data <- function(models, dataset, balanced_for=NULL, n_folds=10L, n_repeats=3L, p=0.5){
+	#checando variáveis numéricas
+	n_folds <- as.integer(n_folds)
+	n_repeats <- as.integer(n_repeats)
+	if (!(n_folds >= 1) | !(n_repeats >= 1)) 
+		stop("`n_folds` and `n_repeats` must be 1 or greater")
+	
+	#variáveis e constantes essenciais
+	IS_BALANCED <- is.character(balanced_for)
+	TEST_SIZE <- as.integer(nrow(dataset)/n_folds)
+	TRAIN_SIZE <- as.integer(nrow(dataset) - TEST_SIZE)
 	data_index <- 1:nrow(dataset)
-	TRAIN_SIZE <- as.integer(nrow(dataset) * ((n_folds-1)/n_folds))
+	
 	#definindo critérios para balancear os dados
-	if (!is.null(balanced_for)) {
+	if (IS_BALANCED) {
 		bal_var <- dataset[[balanced_for]]
 		bal_unique_freqs <- table(bal_var)
-		MAX_BALANCED_SIZE <- min(bal_unique_freqs) * length(bal_unique_freqs) * p
+		GROUP_SIZE <- min(bal_unique_freqs) * p
+		TRAIN_SIZE <- GROUP_SIZE * length(bal_unique_freqs)
 	} else {
 		MAX_BALANCED_SIZE <- TRAIN_SIZE
 	}
 	
-	for (repeats in 1:n_repeats){
-		for (fold in 1:n_folds){
-			train_smp <- sample(data_index, MAX_BALANCED_SIZE)
-			test_smp <- data_index[!(data_index %in% train_smp)]
+	#ordenando amostras aleatórias de dados
+	if (IS_BALANCED) {
+		CLASSES <- names(bal_unique_freqs)
+		#povoando uma lista com índices de cada classe a ser balanceada no treino
+		classes_index <- list()
+		for (class in CLASSES){
+			classes_index[[class]] <- data_index[as.character(bal_var) == class]}
+		
+		train_samples <- list()
+		test_samples <- list()
+		for (reps in 1:n_repeats){
+			for (fold in 1:n_folds){
+				TRAIN_NAME <- paste0("train", reps, "_", fold)
+				TEST_NAME <- paste0("test", reps, "_", fold)
+				
+				class_samples <- lapply(classes_index, function(x) sample(x, GROUP_SIZE))
+				train_samples[[TRAIN_NAME]] <- do.call("c", class_samples)
+				subset_data_index <- data_index[!(data_index %in% train_samples[[TRAIN_NAME]])]
+				test_samples[[TEST_NAME]] <- sample(subset_data_index, TEST_SIZE)
+			}
+		}
+	} else {
+		train_samples <- list()
+		test_samples <- list()
+		for (reps in 1:n_repeats) {
+			for (fold in 1:n_folds) {
+				TRAIN_NAME <- paste0("train", reps, "_", fold)
+				TEST_NAME <- paste0("test", reps, "_", fold)
+				
+				train_samples[[TRAIN_NAME]] <- sample(data_index, TRAIN_SIZE)
+				subset_data_index <- data_index[!(data_index %in% train_samples[[TRAIN_NAME]])]
+				test_samples[[TEST_NAME]] <- subset_data_index
+			}
 		}
 	}
+	return(list(test=test_samples, train=train_samples))
 }
