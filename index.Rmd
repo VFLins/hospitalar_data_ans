@@ -27,11 +27,11 @@ knitr::opts_chunk$set(
 options(outDec=",",big.mark=".")
 set.seed(3)
 
-library(plotly)
 library(flextable)
 library(tidyverse)
 library(randomForest)
 library(naivebayes)
+library(plotly)
 set_flextable_defaults(scroll=list())
 
 source("scripts/functions.R")
@@ -495,6 +495,7 @@ Usando o Critério de Informação de Akaike (AIC) como desempate, a formulaçã
 mdl_lg <- glm(ACIONAMENTO_DO_SEGURO ~ trimestre + idade + modalidade * regiao, data=mdl1_df)
 summary(mdl_lg)
 ```
+
 ### Comparando a Regressão Logística com outros modelos
 
 Vamos adicionar mais alguns modelos com a mesma configuração de variáveis, para este caso, vamos incluir os modelos "Naive Bayes" e "Random Forest". Este último é conhecido na literatura por ser usado em modelagens de Churn e desempenhar bem, comparado com os demais que estamos usando.
@@ -586,4 +587,3 @@ Agora chegou a hora de descobrir como este modelo desempenha "no mundo real", va
 #a <- (mdl1_predict > .999)
 #sum(a == df$ACIONAMENTO_DO_SEGURO)
 ```
-

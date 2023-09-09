@@ -1,3 +1,11 @@
+library(flextable)
+library(tidyverse)
+library(randomForest)
+library(naivebayes)
+library(plotly)
+
+source("scripts/texts.R")
+
 #### Carregando dados ####
 #========================#
 # tabela unificada
