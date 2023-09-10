@@ -583,7 +583,7 @@ Agora chegou a hora de descobrir como este modelo desempenha "no mundo real", va
 #mdl1_predict <- predict.glm(mdl1, mdl1_df)
 ```
 
-```{r}
+```{r} 
 #a <- (mdl1_predict > .999)
 #sum(a == df$ACIONAMENTO_DO_SEGURO)
 ```
