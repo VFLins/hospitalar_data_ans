@@ -198,8 +198,8 @@ roc_curve <- function(responses_prob_df, actuals){
 }
 
 # Obtém um vetor com modelos compatíveis com `stats::predict()` e um conjunto de dados
-# Retorna um conjunto de dados de validação cruzada no método k-folds com repetições
-cv_data <- function(models, dataset, balanced_for=NULL, n_folds=10L, n_repeats=3L, p=0.5){
+# Retorna um conjunto de dados de validação cruzada no método Monte Carlo com repetições
+mccv_data <- function(models, dataset, balanced_for=NULL, n_folds=10L, n_repeats=3L, p=0.5){
 	#checando variáveis numéricas
 	n_folds <- as.integer(n_folds)
 	n_repeats <- as.integer(n_repeats)
