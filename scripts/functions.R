@@ -23,7 +23,8 @@ IQRsel <- function(x, sel=F) {
 	q1 <- quantile(x, 1/4, names=F, na.rm=T)
 	q3 <- quantile(x, 3/4, names=F, na.rm=T)
 	if (sel) x >= q1-iqr & x <= q3+iqr
-	else x[x >= q1-iqr & x <= q3+iqr]}
+	else x[x >= q1-iqr & x <= q3+iqr]
+}
 
 # Formato padrão de exibição de tabelas
 out_table <- function(df) {
@@ -34,7 +35,8 @@ out_table <- function(df) {
 		align(align="center", part="header") %>%
 		align(align="right", part="body") %>% 
 		align(align="left", j=1, part="all") %>%
-		autofit()}
+		autofit()
+}
 
 # formatando numeros para exibir em tabela
 format_numbers <- function(x, decimals=2) {
@@ -43,27 +45,30 @@ format_numbers <- function(x, decimals=2) {
 		digits=decimals, 
 		format="f", 
 		big.mark=".",
-		decimal.mark=",")}
+		decimal.mark=","
+	)
+}
 
 # Tabela formatada com medidas de tendencia central e de dispersao para cada variavel
 summary_num <- function(x, vars) {
 	require(dplyr)
 	require(flextable)
 	
-	mins  <-c(); fstqs <-c(); medians <-c()
-	means <-c(); trdqs <-c(); maxs    <-c()
-	stds  <-c(); nas   <-c(); x       <- x[,vars]
+	mins  <- c(); fstqs <- c(); medians <- c()
+	means <- c(); trdqs <- c(); maxs    <- c()
+	stds  <- c(); nas   <- c(); x       <- x[,vars]
 	
 	for (var in vars) {
-		clean_var   <-na.omit(x[[var]])
-		mins[var]   <-min(clean_var) %>% format_numbers()
-		fstqs[var]  <-quantile(clean_var, probs=.25) %>% format_numbers()
-		medians[var]<-median(clean_var) %>% format_numbers()
-		means[var]  <-mean(clean_var) %>% format_numbers()
-		trdqs[var]  <-quantile(clean_var, probs=.75) %>% format_numbers()
-		maxs[var]   <-max(clean_var) %>% format_numbers()
-		stds[var]   <-sqrt(var(clean_var)) %>% format_numbers()
-		nas[var]    <-as.integer(sum(is.na(x[[var]]))) %>% format_numbers()}
+		clean_var   <- na.omit(x[[var]])
+		mins[var]   <- min(clean_var) %>% format_numbers()
+		fstqs[var]  <- quantile(clean_var, probs=.25) %>% format_numbers()
+		medians[var]<- median(clean_var) %>% format_numbers()
+		means[var]  <- mean(clean_var) %>% format_numbers()
+		trdqs[var]  <- quantile(clean_var, probs=.75) %>% format_numbers()
+		maxs[var]   <- max(clean_var) %>% format_numbers()
+		stds[var]   <- sqrt(var(clean_var)) %>% format_numbers()
+		nas[var]    <- as.integer(sum(is.na(x[[var]]))) %>% format_numbers()
+	}
 	
 	output <- tibble(
 		Variáveis=vars, Mínimo=mins, `Primeiro Quartil`=fstqs, Mediana=medians,
@@ -81,16 +86,17 @@ freq_table <- function(x, var, sel.var=NULL, sel.fun=function(x)is.numeric(x)){
 	N <- nrow(x)
 	na_count <- sum(is.na(x[,var]))
 	
-	if (!is.null(sel.var) & !is.character(sel.var)) {
-		warning("Argumento sel.var deve ser do tipo 'character', continuando sem agregar...")}
-	if (!(sel.var %in% names(x))) {
-		stop(paste(sel.var, "não existe em x"))}
+	if (!is.null(sel.var) & !is.character(sel.var))
+		warning("Argumento sel.var deve ser do tipo 'character', continuando sem agregar...")
+	if (!(sel.var %in% names(x)))
+		stop(paste(sel.var, "não existe em x"))
 	if (is.character(sel.var)) {
 		sel <- sel.fun( x[[sel.var]] )
-		if (sum(sel)==0) {
-			stop("Seleção não deixou itens disponíveis, verifique o argumento 'sel.fun'.")}
+		if (sum(sel)==0)
+			stop("Seleção não deixou itens disponíveis, verifique o argumento 'sel.fun'.")
 		tab <- x[sel, var]
-	} else tab <- x[,var]
+	} else 
+		tab <- x[,var]
 	
 	tab <- enframe(table(tab[,var])) %>%
 		mutate(Freq=as.integer(value), Valor=name) %>%
@@ -110,11 +116,12 @@ freq_plot <- function(x, var, sort=F, aggr.var=NULL, aggr.fun=max, h=NULL, w=800
 	N <- nrow(x)
 	na_count <- sum(is.na(x[,var]))
 	
-	if (!is.null(aggr.var) & !is.character(aggr.var)){
-		warning("Argumento aggr.var deve ser do tipo 'character'")}
-	if (is.character(aggr.var)) {
+	if (!is.null(aggr.var) & !is.character(aggr.var))
+		warning("Argumento aggr.var deve ser do tipo 'character'")
+	if (is.character(aggr.var)) 
 		tab <- x[,c(var, aggr.var)] %>% group_by_at(aggr.var, aggr.fun) %>% .[,var]
-	} else tab <- x[,var]
+	else
+		tab <- x[,var]
 
 	tab <- tab %>% table() %>% enframe() %>%
 		mutate_at("value", as.integer) %>%
@@ -126,10 +133,10 @@ freq_plot <- function(x, var, sort=F, aggr.var=NULL, aggr.fun=max, h=NULL, w=800
 	plot <- ggplot(tab, aes(y=value, x=name)) + geom_col(fill=cores[6]) + coord_flip() + 
 		my_ggtheme() + labs(y=title, x=NULL, title=NULL)
 	 
-	if(is.numeric(sort)){
+	if (is.numeric(sort)) {
 		s <- c(tab[sort, "name"])[["name"]]
 		plot <- plot + scale_x_discrete(limits=s)
-	} else if(is.logical(sort) & sort){
+	} else if (is.logical(sort) & sort) {
 		s <- c(tab[order(tab$value), "name"])[["name"]]
 		plot <- plot + scale_x_discrete(limits=s)}
 	ggplotly(plot, width=w, height=h)
@@ -173,7 +180,7 @@ confusion_matrix <- function(response_prob, actuals, threshold=0.5){
 
 # Obtem um dataframe com as probabilidades previstas e um vetor com as previsões
 # Retorna um dataframe com tpr e fpr para cada combinação de threshold e modelo
-roc_curve <- function(responses_prob_df, actuals){
+roc_curve <- function(responses_prob_df, actuals) {
 	responses_prob_df <- as.data.frame(responses_prob_df)
 	thresholds <- c(1:99)/100
 	out <- data.frame(thresholds=thresholds)
@@ -197,18 +204,25 @@ roc_curve <- function(responses_prob_df, actuals){
 	return(out)
 }
 
-# Obtém um vetor com modelos compatíveis com `stats::predict()` e um conjunto de dados
+# Obtem um vetor com modelos compatíveis com `stats::predict()` e um conjunto de dados
 # Retorna um conjunto de dados de validação cruzada no método Monte Carlo com repetições
-mccv_data <- function(models, dataset, balanced_for=NULL, n_folds=10L, n_repeats=3L, p=0.5){
-	#checando variáveis numéricas
-	n_folds <- as.integer(n_folds)
+mccv_data <- function(formula, models, dataset, balanced_for=NULL, n_repeats=25L, 
+							 q=.5, test_size_percent=.25, type=c('response', 'prob')){
+	library(dplyr)
+	#checando variáveis
 	n_repeats <- as.integer(n_repeats)
-	if (!(n_folds >= 1) | !(n_repeats >= 1)) 
-		stop("`n_folds` and `n_repeats` must be 1 or greater")
-	
+	if (n_repeats <= 0) 
+		stop("`n_repeats` must be 1 or greater")
+	if (!between(test_size_percent, 0, 1) & !between(q, 0, 1))
+		stop("`test_size_percent` and `q` must be between 0 and 1")
+	if (!is.vector(models))
+		stop("You must pass an vector of models in `models`")
+	if (!(balanced_for %in% names(dataset)))
+		stop("`balanced_for` must be a string name of a variable in `dataset`")
+		
 	#variáveis e constantes essenciais
 	IS_BALANCED <- is.character(balanced_for)
-	TEST_SIZE <- as.integer(nrow(dataset)/n_folds)
+	TEST_SIZE <- as.integer(nrow(dataset) * test_size_percent)
 	TRAIN_SIZE <- as.integer(nrow(dataset) - TEST_SIZE)
 	data_index <- 1:nrow(dataset)
 	
@@ -216,46 +230,67 @@ mccv_data <- function(models, dataset, balanced_for=NULL, n_folds=10L, n_repeats
 	if (IS_BALANCED) {
 		bal_var <- dataset[[balanced_for]]
 		bal_unique_freqs <- table(bal_var)
-		GROUP_SIZE <- min(bal_unique_freqs) * p
+		GROUP_SIZE <- min(bal_unique_freqs) * q
 		TRAIN_SIZE <- GROUP_SIZE * length(bal_unique_freqs)
-	} else {
+	} else 
 		MAX_BALANCED_SIZE <- TRAIN_SIZE
-	}
 	
 	#ordenando amostras aleatórias de dados
 	if (IS_BALANCED) {
 		CLASSES <- names(bal_unique_freqs)
 		#povoando uma lista com índices de cada classe a ser balanceada no treino
 		classes_index <- list()
-		for (class in CLASSES){
+		for (class in CLASSES) {
 			classes_index[[class]] <- data_index[as.character(bal_var) == class]}
 		
 		train_samples <- list()
 		test_samples <- list()
-		for (reps in 1:n_repeats){
-			for (fold in 1:n_folds){
-				TRAIN_NAME <- paste0("train", reps, "_", fold)
-				TEST_NAME <- paste0("test", reps, "_", fold)
+		for (reps in 1:n_repeats) {
+			TRAIN_NAME <- paste0("train", reps)
+			TEST_NAME <- paste0("test", reps)
 				
-				class_samples <- lapply(classes_index, function(x) sample(x, GROUP_SIZE))
-				train_samples[[TRAIN_NAME]] <- do.call("c", class_samples)
-				subset_data_index <- data_index[!(data_index %in% train_samples[[TRAIN_NAME]])]
-				test_samples[[TEST_NAME]] <- sample(subset_data_index, TEST_SIZE)
-			}
+			class_samples <- lapply(classes_index, function(x) sample(x, GROUP_SIZE))
+			train_samples[[TRAIN_NAME]] <- do.call("c", class_samples)
+			subset_data_index <- data_index[!(data_index %in% train_samples[[TRAIN_NAME]])]
+			test_samples[[TEST_NAME]] <- sample(subset_data_index, TEST_SIZE)
 		}
 	} else {
 		train_samples <- list()
 		test_samples <- list()
 		for (reps in 1:n_repeats) {
-			for (fold in 1:n_folds) {
-				TRAIN_NAME <- paste0("train", reps, "_", fold)
-				TEST_NAME <- paste0("test", reps, "_", fold)
-				
-				train_samples[[TRAIN_NAME]] <- sample(data_index, TRAIN_SIZE)
-				subset_data_index <- data_index[!(data_index %in% train_samples[[TRAIN_NAME]])]
-				test_samples[[TEST_NAME]] <- subset_data_index
-			}
+			TRAIN_NAME <- paste0("train", reps)
+			TEST_NAME <- paste0("test", reps)
+			
+			train_samples[[TRAIN_NAME]] <- sample(data_index, TRAIN_SIZE)
+			subset_data_index <- data_index[!(data_index %in% train_samples[[TRAIN_NAME]])]
+			test_samples[[TEST_NAME]] <- subset_data_index
 		}
 	}
-	return(list(test=test_samples, train=train_samples))
+	trainings <- names(train_samples)
+	testings <- names(test_samples)
+	
+	# treinando e obtendo previsões para todos os conjuntos de treino e teste
+	recursive_training <- function(models, formula, train_data, test_data) {
+		N_MODELS <- length(models)
+		N_OBS_PREDICT <- nrow(test_data)
+		
+		if (models |> names() |> is.null())
+			names(models) <- paste("model", 1:length(models))
+		model_names <- names(models)
+
+		for (iter in seq_along(models)) {
+			NAME <- model_names[[iter]]
+			MDL <- models[[iter]]
+			trained_mdl <- MDL(formula=formula, data=train_data)
+			
+			if (iter == 1)
+			result <- predict(trained_mdl, test_data, type="response")
+		}
+	}
+	for (iter in seq_along(trainings)) {
+		current_train_sample <- dataset[train_samples[[iter]] ,]
+		recursive_training(models=models, formula=formula, data=current_train_sample)
+	}
+	#return(list(test=test_samples, train=train_samples))
+	return(test)
 }
