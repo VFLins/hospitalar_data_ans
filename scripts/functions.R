@@ -207,7 +207,7 @@ roc_curve <- function(responses_prob_df, actuals) {
 # Obtem um vetor com modelos compatíveis com `stats::predict()` e um conjunto de dados
 # Retorna um conjunto de dados de validação cruzada no método Monte Carlo com repetições
 mccv_data <- function(formula, models, dataset, balanced_for=NULL, n_repeats=25L, 
-							 q=.5, test_size_percent=.25, type=c('response', 'prob')){
+							 q=.5, test_size_percent=.25, type="response"){
 	library(dplyr)
 	#checando variáveis
 	n_repeats <- as.integer(n_repeats)
@@ -217,10 +217,18 @@ mccv_data <- function(formula, models, dataset, balanced_for=NULL, n_repeats=25L
 		stop("`test_size_percent` and `q` must be between 0 and 1")
 	if (!is.vector(models))
 		stop("You must pass an vector of models in `models`")
-	if (!(balanced_for %in% names(dataset)))
-		stop("`balanced_for` must be a string name of a variable in `dataset`")
+	if (!is.null(balanced_for))
+		if (!(balanced_for %in% names(dataset)))
+			stop("`balanced_for` must be a string name of a variable in `dataset`")
+	
+	HAVE_Y_VARIABLE <- terms(formula) |> attr(which="response") |> as.logical()
+	HAS_ONE_Y_VAR <- all.vars(formula[[2]]) |> length() == 1
+	Y_VARIABLE_IS_DOT <- sum(all.vars(formula[[2]]) == ".") |> as.logical()
+	if (!HAVE_Y_VARIABLE | !HAS_ONE_Y_VAR | Y_VARIABLE_IS_DOT)
+		stop("Your `formula` must have one predicted variable")
 		
 	#variáveis e constantes essenciais
+	Y_VARIABLE <- all.vars(formula[[2]])[[1]]
 	IS_BALANCED <- is.character(balanced_for)
 	TEST_SIZE <- as.integer(nrow(dataset) * test_size_percent)
 	TRAIN_SIZE <- as.integer(nrow(dataset) - TEST_SIZE)
@@ -266,13 +274,14 @@ mccv_data <- function(formula, models, dataset, balanced_for=NULL, n_repeats=25L
 			test_samples[[TEST_NAME]] <- subset_data_index
 		}
 	}
-	trainings <- names(train_samples)
-	testings <- names(test_samples)
 	
 	# treinando e obtendo previsões para todos os conjuntos de treino e teste
-	recursive_training <- function(models, formula, train_data, test_data) {
+	recursive_training <- function(models, formula, train_index, test_index) {
 		N_MODELS <- length(models)
-		N_OBS_PREDICT <- nrow(test_data)
+		N_OBS_PREDICT <- length(test_index)
+		test_data <- dataset[test_index, ]
+		train_data <- dataset[train_index, ]
+		results <- list()
 		
 		if (models |> names() |> is.null())
 			names(models) <- paste("model", 1:length(models))
@@ -283,14 +292,35 @@ mccv_data <- function(formula, models, dataset, balanced_for=NULL, n_repeats=25L
 			MDL <- models[[iter]]
 			trained_mdl <- MDL(formula=formula, data=train_data)
 			
-			if (iter == 1)
-			result <- predict(trained_mdl, test_data, type="response")
+			#tryCatch(
+			#	try={predictions <- predict(trained_mdl, test_data, type=type)},
+			#	except={stop(paste("Exception training", NAME ,"\nCheck `type` value and `dataset` variables"))}
+			#)
+			predictions <- predict(trained_mdl, test_data, type=type)
+			results[[iter]] <- data.frame(
+				y_index=test_index,
+				y_actual=test_data[[Y_VARIABLE]],
+				y_predict=predictions,
+				model_name=rep(NAME, N_OBS_PREDICT)
+			)
 		}
+		return(do.call("rbind", results))
 	}
+	
+	#construindo dataframe com resultados
+	trainings <- names(train_samples)
+	testings <- names(test_samples)
+	output <- list()
 	for (iter in seq_along(trainings)) {
-		current_train_sample <- dataset[train_samples[[iter]] ,]
-		recursive_training(models=models, formula=formula, data=current_train_sample)
+		current_train_index <- train_samples[[trainings[iter]]]
+		current_test_index <- test_samples[[testings[iter]]]
+		
+		output[[iter]] <- recursive_training(
+			models=models,
+			formula=formula, 
+			train_index=current_train_index,
+			test_index=current_test_index)
 	}
 	#return(list(test=test_samples, train=train_samples))
-	return(test)
+	return(do.call("rbind", output))
 }
