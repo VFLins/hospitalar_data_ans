@@ -550,7 +550,7 @@ pred_df <- data.frame(
 	y=df$ACIONAMENTO_DO_SEGURO,
 	Regressao.Logistica=predict(mdl_lg, df),
 	Naive.Bayes=predict(mdl_nb, df, type="prob")[, "TRUE"],
-	Random.Forest=predict(mdl_rf, df)
+	Random.Forest=predict(mdl_rf, df, type="prob")[, "TRUE"]
 )
 ```
 
