@@ -340,6 +340,6 @@ mccv_data <- function(formulas, models, types, dataset, balanced_for=NULL, n_rep
 			train_index=current_train_index,
 			test_index=current_test_index)
 	}
-	#return(list(test=test_samples, train=train_samples))
-	return(do.call("rbind", output))
+	n_rows_output <- sapply(output, nrow) |> sum()
+	return(cbind(id=1:n_rows_output, do.call("rbind", output)))
 }
