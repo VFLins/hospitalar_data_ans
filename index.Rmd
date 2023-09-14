@@ -492,7 +492,8 @@ Depois de passar um tempo testando as variáveis e suas interações, as melhore
 Usando o Critério de Informação de Akaike (AIC) como desempate, a formulação do `mdl1_v8` se mostrou a mais eficiente. Vamos considerar esta modelagem nas análises adiante, mas antes, vamos ver algumas estatísticas em relação à este modelo.
 
 ```{r SELECTED_MODEL_STATS}
-mdl_lg <- glm(ACIONAMENTO_DO_SEGURO ~ trimestre + idade + modalidade * regiao, data=mdl1_df)
+form1 <- ACIONAMENTO_DO_SEGURO ~ trimestre + idade + modalidade * regiao
+mdl_lg <- glm(form1, data=mdl1_df)
 summary(mdl_lg)
 ```
 
@@ -501,8 +502,9 @@ summary(mdl_lg)
 Vamos adicionar mais alguns modelos com a mesma configuração de variáveis, para este caso, vamos incluir os modelos "Naive Bayes" e "Random Forest". Este último é conhecido na literatura por ser usado em modelagens de Churn e desempenhar bem, comparado com os demais que estamos usando.
 
 ```{r ALTERNATIVE_MODELS, warning=FALSE}
-mdl_nb <- naive_bayes(ACIONAMENTO_DO_SEGURO ~ trimestre + idade + modalidade * regiao, data=mdl1_df)
-mdl_rf <- randomForest(factor(ACIONAMENTO_DO_SEGURO) ~ trimestre + idade + modalidade * regiao, data=mdl1_df)
+form2 <- factor(ACIONAMENTO_DO_SEGURO) ~ trimestre + idade + modalidade * regiao
+mdl_nb <- naive_bayes(form1)
+mdl_rf <- randomForest(form2, data=mdl1_df)
 ```
 
 A métrica de Akaike foi muito útil para escolher entre as regressões logísticas, mas não vai ser útil para comparar a regressão com os demais modelos, para isto, vamos computar a Área Sob a Curva ROC (AUC), esta curva delimita a relação de custo/recompensa de verdadeiro-positivo e falso-positivo para cada limiar de probabilidade de acionamento do seguro escolhida.
@@ -578,6 +580,15 @@ O resultado é tão similar para os modelos que eu tive que usar pontos na visua
 ### Avaliando o modelo escolhido
 
 Agora chegou a hora de descobrir como este modelo desempenha "no mundo real", vamos replicar o feature engineering fora do recorte de dados usado para treinar o modelo para descobrir o quão satisfatório é o seu poder preditivo.
+
+```{r}
+cvdata <- mccv_data(
+	formulas=c(form1, form1, form2),
+	models=c(LogReg=glm, NBayes=naive_bayes, RndFst=randomForest),
+	types=c("response", "prob", "prob"),
+	dataset=df,
+	balanced_for="ACIONAMENTO_DO_SEGURO")
+```
 
 ```{r}
 #mdl1_predict <- predict.glm(mdl1, mdl1_df)

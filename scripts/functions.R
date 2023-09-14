@@ -293,24 +293,14 @@ mccv_data <- function(formulas, models, types, dataset, balanced_for=NULL, n_rep
 	}
 	
 	# treinando e obtendo previsões para todos os conjuntos de treino e teste
-	recursive_training <- function(models, train_index, test_index) {
-		N_MODELS <- length(models)
-		N_OBS_PREDICT <- length(test_index)
-		test_data <- dataset[test_index, ]
-		train_data <- dataset[train_index, ]
-		results <- list()
-		
-		if (models |> names() |> is.null())
-			names(models) <- paste("model", 1:length(models))
-		model_names <- names(models)
+	recursive_training <- function(model, model_name, formula, type) {
+		CURRENT_Y_VAR <- all.vars(formula[[2]])[[1]]
 
-		for (iter in seq_along(models)) {
-			NAME <- model_names[[iter]]
-			MDL <- models[[iter]]
-			FORMULA <- formulas[[iter]]
-			TYPE <- types[[iter]]
-			CURRENT_Y_VAR <- Y_VARIABLES[[iter]]
-			trained_mdl <- MDL(formula=FORMULA, data=train_data)
+		results <- list()
+		for (iter in seq_along(train_samples)){
+			train_data <- dataset[train_samples[[iter]], ]
+			test_data <- dataset[test_samples[[iter]], ]
+			trained_mdl <- model(formula=formula, data=train_data)
 			
 			if (TYPE == "prob") {
 				predictions <- predict(trained_mdl, test_data, type=TYPE)[, "TRUE"]
@@ -318,28 +308,66 @@ mccv_data <- function(formulas, models, types, dataset, balanced_for=NULL, n_rep
 				predictions <- predict(trained_mdl, test_data, type=TYPE)
 			}
 			results[[iter]] <- data.frame(
-				y_index=test_index,
+				iteration=rep(paste0(model_name, iter), TEST_SIZE),
+				dataset_index=test_samples[[iter]],
 				y_actual=test_data[[CURRENT_Y_VAR]],
-				y_predict=predictions,
-				model_name=rep(NAME, N_OBS_PREDICT)
+				y_predict=predictions
 			)
 		}
+			
+		# if (models |> names() |> is.null())
+		# 	names(models) <- paste("model", 1:length(models))
+		# model_names <- names(models)
+		# 
+		# for (iter in seq_along(models)) {
+		# 	NAME <- model_names[[iter]]
+		# 	MDL <- models[[iter]]
+		# 	FORMULA <- formulas[[iter]]
+		# 	TYPE <- types[[iter]]
+		# 	CURRENT_Y_VAR <- Y_VARIABLES[[iter]]
+		# 	trained_mdl <- MDL(formula=FORMULA, data=train_data)
+		# 	
+		# 
+		# 	results[[iter]] <- data.frame(
+		# 		y_index=test_index,
+		# 		y_actual=test_data[[CURRENT_Y_VAR]],
+		# 		y_predict=predictions,
+		# 		model_name=rep(NAME, N_OBS_PREDICT)
+		# 	)
+		# }
 		return(do.call("rbind", results))
 	}
 	
-	#construindo dataframe com resultados
-	trainings <- names(train_samples)
-	testings <- names(test_samples)
+	#construindo lista de dataframes com resultados para cada modelo
+	if (models |> names() |> is.null())
+		names(models) <- paste("model", 1:length(models))
+	model_names <- names(models)
+	
 	output <- list()
-	for (iter in seq_along(trainings)) {
-		current_train_index <- train_samples[[trainings[iter]]]
-		current_test_index <- test_samples[[testings[iter]]]
+	for (iter in seq_along(models)) {
+		NAME <- model_names[[iter]]
+		MDL <- models[[iter]]
+		FORMULA <- formulas[[iter]]
+		TYPE <- types[[iter]]
+		#CURRENT_Y_VAR <- Y_VARIABLES[[iter]]
 		
-		output[[iter]] <- recursive_training(
-			models=models,
-			train_index=current_train_index,
-			test_index=current_test_index)
+		output[[NAME]] <- recursive_training(
+			model=MDL, 
+			model_name=NAME,
+			formula=FORMULA,
+			type=TYPE
+		)
 	}
-	n_rows_output <- sapply(output, nrow) |> sum()
-	return(cbind(id=1:n_rows_output, do.call("rbind", output)))
+	
+	# for (iter in seq_along(trainings)) {
+	# 	current_train_index <- train_samples[[trainings[iter]]]
+	# 	current_test_index <- test_samples[[testings[iter]]]
+	# 	
+	# 	output[[iter]] <- recursive_training(
+	# 		models=models,
+	# 		train_index=current_train_index,
+	# 		test_index=current_test_index)
+	# }
+	#n_rows_output <- sapply(output, nrow) |> sum()
+	return(output)
 }
