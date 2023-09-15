@@ -575,20 +575,31 @@ p <- ggplot(temp) +
 ggplotly(p)
 ```
 
-O resultado é tão similar para os modelos que eu tive que usar pontos na visualização em vez de linhas para ter alguma maneira de diferenciar as curvas, mantendo o mesmo arranjo de variáveis em diferentes modelos, o resultado final deve variar muito pouco. Dito isto, vamos continuar com o modelo original de **Regressão Logística**.
+O resultado é tão similar para os modelos que eu tive que usar pontos na visualização em vez de linhas para ter alguma maneira de diferenciar as curvas, mantendo o mesmo arranjo de variáveis em diferentes modelos, o resultado final deve variar muito pouco. Dito isto, vamos continuar com mais uma rodada de testes, para encontrar o melhor modelo para este propósito.
 
-### Avaliando o modelo escolhido
+Vamos usar uma validação cruzada, seguindo o [método de Monte Carlo](https://en.wikipedia.org/wiki/Cross-validation_(statistics)#Repeated_random_sub-sampling_validation), mas preservando um conjunto balanceado de treino. O código fonte deste algorítimo e mais informações sobre seu funcionamento podem ser encontrados em [`functions.r`](https://github.com/VFLins/hospitalar_data-pda-tiss/blob/main/scripts/functions.R).
 
-Agora chegou a hora de descobrir como este modelo desempenha "no mundo real", vamos replicar o feature engineering fora do recorte de dados usado para treinar o modelo para descobrir o quão satisfatório é o seu poder preditivo.
+Manter os dados balanceados no treino gera dois problemas: 1- Diminui a quantidade de observações usadas no treino e 2- Desbalanceia ainda mais os dados no teste. Mas estes custos não superam o benefício da remoção de viés no momento do treinamento, a maioria dos modelos pode simplesmente aprender que um evento ocorre mais que o outro, e desconsiderar o impacto das variáveis explicativas.
 
-```{r}
+O método de Monte Carlo foi escolhido no lugar do K-Fold, pois este apresenta menor variância para as métricas, o que será um bom equiliíbrio, uma vez que já estamos controlando os modelos para viés. Assim estamos buscando um equilíbrio no *trade-off* conhecido entre viés e variância.
+
+```{r CROSS-VALIDATION, eval=FALSE}
 cvdata <- mccv_data(
 	formulas=c(form1, form1, form2),
 	models=c(LogReg=glm, NBayes=naive_bayes, RndFst=randomForest),
 	types=c("response", "prob", "prob"),
 	dataset=df,
-	balanced_for="ACIONAMENTO_DO_SEGURO")
+	balanced_for="ACIONAMENTO_DO_SEGURO",
+	n_repeats=14)
 ```
+
+```{r CV-LOAD, include=FALSE}
+cvdata <- readRDS("cv_data.rds")
+```
+
+### Avaliando o modelo escolhido
+
+Agora chegou a hora de descobrir como este modelo desempenha "no mundo real", vamos replicar o feature engineering fora do recorte de dados usado para treinar o modelo para descobrir o quão satisfatório é o seu poder preditivo.
 
 ```{r}
 #mdl1_predict <- predict.glm(mdl1, mdl1_df)
