@@ -180,7 +180,7 @@ confusion_matrix <- function(response_prob, actuals, threshold=0.5){
 
 # Obtem um dataframe com as probabilidades previstas e um vetor com as previsões
 # Retorna um dataframe com tpr e fpr para cada combinação de threshold e modelo
-roc_curve <- function(responses_prob_df, actuals) {
+prc_curve <- function(responses_prob_df, actuals) {
 	responses_prob_df <- as.data.frame(responses_prob_df)
 	thresholds <- c(1:99)/100
 	out <- data.frame(thresholds=thresholds)
@@ -188,17 +188,17 @@ roc_curve <- function(responses_prob_df, actuals) {
 	
 	for (mdl in colnames(responses_prob_df)) {
 		tpr <- c()
-		fpr <- c()
+		precision <- c()
 		
 		for (i in thresholds) {
 			cm <- confusion_matrix(responses_prob_df[mdl], actuals, i)
 			tpr <- append(tpr, cm[["tp"]]/(cm[["tp"]] + cm[["fn"]]))
-			fpr <- append(fpr, cm[["fp"]]/(cm[["fp"]] + cm[["tn"]]))
+			precision <- append(precision, cm[["tp"]]/(cm[["tp"]] + cm[["fp"]]))
 		}
 		tpr_name = paste0(mdl, "_tpr")
-		fpr_name = paste0(mdl, "_fpr")
-		col_names <- append(col_names, c(tpr_name, fpr_name))
-		out <- cbind(out, data.frame(tpr, fpr))
+		precision_name = paste0(mdl, "_precision")
+		col_names <- append(col_names, c(tpr_name, precision_name))
+		out <- cbind(out, data.frame(tpr, precision))
 		colnames(out) <- col_names
 	}
 	return(out)
@@ -314,27 +314,7 @@ mccv_data <- function(formulas, models, types, dataset, balanced_for=NULL, n_rep
 				y_predict=predictions
 			)
 		}
-			
-		# if (models |> names() |> is.null())
-		# 	names(models) <- paste("model", 1:length(models))
-		# model_names <- names(models)
-		# 
-		# for (iter in seq_along(models)) {
-		# 	NAME <- model_names[[iter]]
-		# 	MDL <- models[[iter]]
-		# 	FORMULA <- formulas[[iter]]
-		# 	TYPE <- types[[iter]]
-		# 	CURRENT_Y_VAR <- Y_VARIABLES[[iter]]
-		# 	trained_mdl <- MDL(formula=FORMULA, data=train_data)
-		# 	
-		# 
-		# 	results[[iter]] <- data.frame(
-		# 		y_index=test_index,
-		# 		y_actual=test_data[[CURRENT_Y_VAR]],
-		# 		y_predict=predictions,
-		# 		model_name=rep(NAME, N_OBS_PREDICT)
-		# 	)
-		# }
+
 		return(do.call("rbind", results))
 	}
 	
@@ -358,16 +338,6 @@ mccv_data <- function(formulas, models, types, dataset, balanced_for=NULL, n_rep
 			type=TYPE
 		)
 	}
-	
-	# for (iter in seq_along(trainings)) {
-	# 	current_train_index <- train_samples[[trainings[iter]]]
-	# 	current_test_index <- test_samples[[testings[iter]]]
-	# 	
-	# 	output[[iter]] <- recursive_training(
-	# 		models=models,
-	# 		train_index=current_train_index,
-	# 		test_index=current_test_index)
-	# }
-	#n_rows_output <- sapply(output, nrow) |> sum()
+
 	return(output)
 }
