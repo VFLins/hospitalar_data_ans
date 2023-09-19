@@ -628,6 +628,14 @@ cvdata <- mccv_data(
 cvdata <- readRDS("cv_data.rds")
 ```
 
+Agora que temos os dados de erros dos modelos, podemos obter métricas customizadas, não precisamos nos limitar ao que os pacotes do R oferecem por padrão. Para o propósito deste desafio, vamos usar as métricas:
+
+-   **Precision-Recall AUC**
+
+-   **F-2 Score**
+
+Como estamos usando um modelo em que as previsões são desbalanceadas, e em que o falso negativo (erro tipo 1) é mais indesejado que os falsos negativos (erro tipo 2), nossas métricas de erro deve priorizar a capacidade do modelo de prever corretamente os casos positivos e minimizar os erros tipo 1. Por este motivo, ambas as métricas que escolhemos incorporam a *Taxa de Positivo Verdadeiro* (ou *recall*) e o *Valor Preditivo Verdadeiro* (ou *Precision*).
+
 ### Avaliando o modelo escolhido
 
 Agora chegou a hora de descobrir como este modelo desempenha "no mundo real", vamos replicar o feature engineering fora do recorte de dados usado para treinar o modelo para descobrir o quão satisfatório é o seu poder preditivo.
