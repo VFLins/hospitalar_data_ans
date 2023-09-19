@@ -634,7 +634,26 @@ Agora que temos os dados de erros dos modelos, podemos obter métricas customiza
 
 -   **F-2 Score**
 
-Como estamos usando um modelo em que as previsões são desbalanceadas, e em que o falso negativo (erro tipo 1) é mais indesejado que os falsos negativos (erro tipo 2), nossas métricas de erro deve priorizar a capacidade do modelo de prever corretamente os casos positivos e minimizar os erros tipo 1. Por este motivo, ambas as métricas que escolhemos incorporam a *Taxa de Positivo Verdadeiro* (ou *recall*) e o *Valor Preditivo Verdadeiro* (ou *Precision*).
+Como estamos usando um modelo em que as previsões são desbalanceadas, e em que o falso negativo (erro tipo 1) oferece mais custos de negócio que os falsos negativos (erro tipo 2), nossas métricas de erro deve priorizar a capacidade do modelo de prever corretamente os casos positivos e minimizar os erros tipo 1. Por este motivo, ambas as métricas que escolhemos incorporam a *Taxa de Positivo Verdadeiro* (ou *recall*) e o *Valor Preditivo Positivo* (ou *Precision*).
+
+O *Precision-Recall AUC* (PRAUC) é independente do limiar escolhido, e será usado para avaliar a capacidade preditiva geral de cada modelo, já o
+
+Agora que já temos os dados da validação cruzada, podemos obter as métricas de desempenho de cada um baseado nos critérios que acabamos de definir.
+
+```{r CV-RESULTS}
+for (i in seq_along(cvdata)) {
+	nm <- names(cvdata[i])[1]
+	prauc <- PRAUC(cvdata[[i]]$y_predict, cvdata[[i]]$y_actual)
+	f2score <- FBeta_Score(
+		cvdata[[i]]$y_actual, 
+		{cvdata[[i]]$y_predict>=.5}, 
+		beta=2
+	)
+	
+	print(paste(nm, "PRAUC:", prauc))
+	print(paste(nm, "F-2:", f2score)	)
+}
+```
 
 ### Avaliando o modelo escolhido
 
