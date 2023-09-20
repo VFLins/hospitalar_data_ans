@@ -475,11 +475,14 @@ mdl_df["trimestre"] <- factor(temp)
 
 Vamos treinar alguns modelos de regressão logística para obter a melhor combinação de variáveis no trabalho de identificar a se um seguro será ou não acionado.
 
-```{r mirror--MODELS_SETUP, eval=FALSE}
-# exemplos de modelos testados
+```{r LOGIT-MODEL-FUN}
 logit_model <- function(formula, data)
 	glm(formula=formula, data=data, family=binomial(link="logit"))
+```
 
+
+```{r mirror--MODELS_SETUP, eval=FALSE}
+# exemplos de modelos testados
 mdl_v1 <- logit_model(sinistro ~ modalidade*idade -1, data=mdl_df)
 mdl_v2 <- logit_model(sinistro ~ modalidade * trimestre, data=mdl_df)
 mdl_v3 <- logit_model(sinistro ~ idade * trimestre * regiao, data=mdl_df)
@@ -636,22 +639,15 @@ Agora que temos os dados de erros dos modelos, podemos obter métricas customiza
 
 Como estamos usando um modelo em que as previsões são desbalanceadas, e em que o falso negativo (erro tipo 1) oferece mais custos de negócio que os falsos negativos (erro tipo 2), nossas métricas de erro deve priorizar a capacidade do modelo de prever corretamente os casos positivos e minimizar os erros tipo 1. Por este motivo, ambas as métricas que escolhemos incorporam a *Taxa de Positivo Verdadeiro* (ou *recall*) e o *Valor Preditivo Positivo* (ou *Precision*).
 
-O *Precision-Recall AUC* (PRAUC) é independente do limiar escolhido, e será usado para avaliar a capacidade preditiva geral de cada modelo, já o
+O valor previsto pelos modelos no caso de classificação é interpretado como a probablidade de ocorrência do caso postivo (acionamento do sinistro), há um limiar de 50% definido por padrão na maioria dos casos de previsão, onde a probabilidade maior que este valor é entendida como uma previsão de que o caso positivo acontecerá. Os modelos de classificação podem ser ajustados para capturar mais os casos positivos ou os casos negativos quando alteramos o limiar da probablidade prevista.
 
-Agora que já temos os dados da validação cruzada, podemos obter as métricas de desempenho de cada um baseado nos critérios que acabamos de definir.
+O *Precision-Recall AUC* (PRAUC) é independente do limiar escolhido, e será usado para avaliar a capacidade preditiva geral de cada modelo, já o *F-2 Socore* será usado para definir o limiar ideal, uma vez que o modelo foi escolhido. Agora que já temos os dados da validação cruzada, podemos obter as métricas de desempenho de cada um baseado nos critérios que acabamos de definir.
 
-```{r CV-RESULTS}
+```{r CV-FIRST-RESULTS}
 for (i in seq_along(cvdata)) {
 	nm <- names(cvdata[i])[1]
 	prauc <- PRAUC(cvdata[[i]]$y_predict, cvdata[[i]]$y_actual)
-	f2score <- FBeta_Score(
-		cvdata[[i]]$y_actual, 
-		{cvdata[[i]]$y_predict>=.5}, 
-		beta=2
-	)
-	
 	print(paste(nm, "PRAUC:", prauc))
-	print(paste(nm, "F-2:", f2score)	)
 }
 ```
 
