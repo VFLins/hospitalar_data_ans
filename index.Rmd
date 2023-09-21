@@ -480,7 +480,6 @@ logit_model <- function(formula, data)
 	glm(formula=formula, data=data, family=binomial(link="logit"))
 ```
 
-
 ```{r mirror--MODELS_SETUP, eval=FALSE}
 # exemplos de modelos testados
 mdl_v1 <- logit_model(sinistro ~ modalidade*idade -1, data=mdl_df)
@@ -601,7 +600,7 @@ Agora que temos os dados de erros dos modelos, podemos obter métricas customiza
 
 -   **Precision-Recall AUC**
 
--   **F-2 Score**
+-   **Uma métrica customizada**
 
 Como estamos usando um modelo em que as previsões são desbalanceadas, e em que o falso negativo (erro tipo 2) oferece mais custos de negócio que os falsos positivos (erro tipo 1), nossas métricas de erro devem priorizar a capacidade do modelo de prever corretamente os casos positivos e minimizar os erros tipo 2. Por este motivo, ambas as métricas que escolhemos incorporam a *Taxa de Positivo Verdadeiro* (ou *recall*) e o *Valor Preditivo Positivo* (ou *Precision*).
 
@@ -617,19 +616,37 @@ for (i in seq_along(cvdata)) {
 }
 ```
 
-O melhor resultado que obtivemos foi na regressão logística, agora que conseguimos escolher o modelo, vamos definir o limiar de probabilidade que separa o que será classificado como "Acionamento do sinistro" e o que será "Não acionamento do sinistro". Para isso, vamos obter a métrica `F2-score` para um conjunto de limiares possíveis, para economizar tempo de computação, vamos usar 19 possíveis limiares de 5% à 95%.
+O melhor resultado que obtivemos foi na regressão logística, agora que conseguimos escolher o modelo, vamos definir o limiar de probabilidade que separa o que será classificado como "Acionamento do sinistro" e o que será "Não acionamento do sinistro". Para isso vamos usar uma métrica customizada $M$, que consiste na diferença entre recall e a taxa de falso negativo:
 
-```{r}
-select_threshold(temp$y_actual, temp$y_predict, plot_=TRUE)
+$$
+M = Recall - FNR
+$$
+
+A taxa de falso negativo pode variar entre 0 e 1, assim como o recall. A diferença é que conforme aumentamos o limiar, estes se deslocam de origens diferentes à destinos diferentes. 
+
+O mais comum é que esta métrica varie de um valor negativo ($FNR > Recall$) para um valor positivo ($Recall > FNR$), embora observemos uma oscilação neste sentido, a métrica que obtemos não chega nunca num valor positivo:
+
+```{r CV-THRESHOLD-SELECT}
+temp <- cvdata$LogReg
+select_threshold(
+	temp$y_actual, 
+	temp$y_predict, 
+	plot_=TRUE, 
+	model_name="Regressão logística")
 ```
 
+Isto significa que o Recall nunca cresce o suficiente para superar a Taxa de Falso Negativo, o que resulta num desempenho subótimo para um modelo em produção. O que é relativamente aceitável neste contexto, mas um modelo eficaz dependeria de um trabalho mais extenso de obtenção e tratamento de variáveis exógenas.
+
+Com isto, temos um modelo escolhido e um limiar definido, agora podemos tirar proveito do [*método holdout*](https://en.wikipedia.org/wiki/Cross-validation_(statistics)#Holdout_method) para obter métricas de previsão com dados que nunca foram usados para treinar o modelo. Assim poderemos simular uma situação em que estamos colocando-o em produção, exposto à novos dados em tempo real.
 
 ### Avaliando o modelo escolhido
 
-Agora chegou a hora de descobrir como este modelo desempenha "no mundo real", vamos replicar o feature engineering fora do recorte de dados usado para treinar o modelo para descobrir o quão satisfatório é o seu poder preditivo.
+Agora chegou a hora de descobrir como este modelo desempenha "no mundo real", vamos usar o recorte de dados que criamos anteriormente.
 
 ```{r}
-#mdl_predict <- predict.glm(mdl, mdl_df)
+y <- adf$sinistro
+y_pred <- predict(mdl_rf, adf, type="prob")[, "TRUE"]
+confusion_matrix({y_pred >= .95}, y)
 ```
 
 ```{r}
