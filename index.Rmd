@@ -611,7 +611,7 @@ O *Precision-Recall AUC* (PRAUC) é independente do limiar escolhido, e será us
 ```{r CV-FIRST-RESULTS}
 for (i in seq_along(cvdata)) {
 	nm <- names(cvdata[i])[1]
-	prauc <- PRAUC(cvdata[[i]]$y_predict, cvdata[[i]]$y_actual)
+	prauc <- AUC(cvdata[[i]]$y_predict, cvdata[[i]]$y_actual)
 	print(paste(nm, "PRAUC:", prauc))
 }
 ```
@@ -619,23 +619,23 @@ for (i in seq_along(cvdata)) {
 O melhor resultado que obtivemos foi na regressão logística, agora que conseguimos escolher o modelo, vamos definir o limiar de probabilidade que separa o que será classificado como "Acionamento do sinistro" e o que será "Não acionamento do sinistro". Para isso vamos usar uma métrica customizada $M$, que consiste na diferença entre recall e a taxa de falso negativo:
 
 $$
-M = Recall - FNR
+M = Recall \times (1+Precision) \times FNR^3
 $$
 
-A taxa de falso negativo pode variar entre 0 e 1, assim como o recall. A diferença é que conforme aumentamos o limiar, estes se deslocam de origens diferentes à destinos diferentes. 
+Todos os valores que compõem a métrica variam de 0 a 1, os dois primeiros são indicadores de bom desempenho do modelo, enquanto que o último é o termo de penalidade, que penaliza pela Taxa de Falsos Negativos (erro mais indesejado, como discutido anteriormente).
 
-O mais comum é que esta métrica varie de um valor negativo ($FNR > Recall$) para um valor positivo ($Recall > FNR$), embora observemos uma oscilação neste sentido, a métrica que obtemos não chega nunca num valor positivo:
+Adicionar `Precision` na fórmula também ajuda a controlar a métrica para os falsos positivos, que não é o erro mais caro de cometer, mas um modelo bem ajustado deve otimizar a quantidade qualquer tipo de erros.
+
+Para esta métrica, é esperado um valor sempre maior que zero, e que quanto maior, melhor o desempenho de nosso modelo em prever corretamente os casos positivos minimizando os erros adequadamente. Vamos obter o valor da métrica para diferentes limiares de probabilidade e escolher o primeiro ponto que maximiza o valor da métrica
 
 ```{r CV-THRESHOLD-SELECT}
-temp <- cvdata$LogReg
+temp <- cvdata$RndFst
 select_threshold(
 	temp$y_actual, 
 	temp$y_predict, 
 	plot_=TRUE, 
 	model_name="Regressão logística")
 ```
-
-Isto significa que o Recall nunca cresce o suficiente para superar a Taxa de Falso Negativo, o que resulta num desempenho subótimo para um modelo em produção. O que é relativamente aceitável neste contexto, mas um modelo eficaz dependeria de um trabalho mais extenso de obtenção e tratamento de variáveis exógenas.
 
 Com isto, temos um modelo escolhido e um limiar definido, agora podemos tirar proveito do [*método holdout*](https://en.wikipedia.org/wiki/Cross-validation_(statistics)#Holdout_method) para obter métricas de previsão com dados que nunca foram usados para treinar o modelo. Assim poderemos simular uma situação em que estamos colocando-o em produção, exposto à novos dados em tempo real.
 
@@ -646,7 +646,7 @@ Agora chegou a hora de descobrir como este modelo desempenha "no mundo real", va
 ```{r}
 y <- adf$sinistro
 y_pred <- predict(mdl_rf, adf, type="prob")[, "TRUE"]
-confusion_matrix({y_pred >= .95}, y)
+confusion_matrix({y_pred >= .94}, y)
 ```
 
 ```{r}
