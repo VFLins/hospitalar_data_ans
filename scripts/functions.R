@@ -341,7 +341,7 @@ mccv_data <- function(formulas, models, types, dataset, balanced_for=NULL, n_rep
 	return(output)
 }
 
-select_threshold <- function(y_actual, y_probs, plot_=FALSE) {
+select_threshold <- function(y_actual, y_probs, plot_=FALSE, model_name="o modelo") {
 	thresholds <- 1:99/100
 	recall <- c(); fnr <- c()
 	
@@ -361,7 +361,7 @@ select_threshold <- function(y_actual, y_probs, plot_=FALSE) {
 			geom_line(aes(x=Threshold, y=metric), color=cores[6]) + 
 			geom_text(aes(x=.9, y=-.7, label=val), color=cores[3]) + 
 			geom_vline(xintercept=val, color=cores[3]) +
-			ylab(NULL) + my_ggtheme()
+			ylab(NULL) + ggtitle(paste("Melhor limiar para", model_name)) + my_ggtheme()
 		return(plotly::ggplotly(p))
 	} else {
 		return(thresholds[which.max(metric)])
