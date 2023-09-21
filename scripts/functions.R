@@ -190,7 +190,8 @@ prc_curve <- function(responses_prob_df, actuals) {
 		precision <- c()
 		
 		for (i in thresholds) {
-			cm <- confusion_matrix(responses_prob_df[mdl], actuals, i)
+			predictions <- responses_prob_df >= i
+			cm <- confusion_matrix(predictions, actuals)
 			tpr <- append(tpr, cm[["tp"]]/(cm[["tp"]] + cm[["fn"]]))
 			precision <- append(precision, cm[["tp"]]/(cm[["tp"]] + cm[["fp"]]))
 		}
@@ -343,23 +344,22 @@ mccv_data <- function(formulas, models, types, dataset, balanced_for=NULL, n_rep
 
 select_threshold <- function(y_actual, y_probs, plot_=FALSE, model_name="o modelo") {
 	thresholds <- 1:99/100
-	recall <- c(); fnr <- c()
+	TP <- c(); FN <- c(); FP <- c()
 	
 	for (i in thresholds) {
 		prediction <- {y_probs >= i}
 		cm <- confusion_matrix(y_actual, prediction)
-		tp <- cm[["tp"]]
-		fn <- cm[["fn"]]
-		
-		recall <- c(recall, tp/(tp+fn))
-		fnr <- c(fnr, fn/(fn+tp))
+
+		TP <- c(TP, cm[["tp"]])
+		FN <- c(FN, cm[["fn"]])
+		FP <- c(FP, cm[["fp"]])
 	}
-	metric <- recall - fnr
+	metric <- TP/(2*FN+FP)
 	if (plot_) {
 		val <- thresholds[which.max(metric)]
 		p <- ggplot(data=data.frame(Threshold=thresholds, metric=metric)) +
 			geom_line(aes(x=Threshold, y=metric), color=cores[6]) + 
-			geom_text(aes(x=.9, y=-.7, label=val), color=cores[3]) + 
+			geom_text(aes(x=val-.05, y=mean(metric, na.rm=T), label=val), color=cores[3]) + 
 			geom_vline(xintercept=val, color=cores[3]) +
 			ylab(NULL) + ggtitle(paste("Melhor limiar para", model_name)) + my_ggtheme()
 		return(plotly::ggplotly(p))
