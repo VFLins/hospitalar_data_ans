@@ -577,40 +577,6 @@ pred_df <- data.frame(
 )
 ```
 
-E em seguida obter as métricas para cada limiar possível, e elaborar uma visualização das *Precision-Recall Cruves* (PRC):
-
-```{r plot--ROC_MODELS}
-temp <- prc_curve(
-	pred_df[c("Regressao.Logistica", "Naive.Bayes", "Random.Forest")], 
-	pred_df$y
-)
-
-Diagonalx = seq(0, 1, length.out=99)
-Diagonaly = seq(1, 0, length.out=99)
-p <- ggplot(temp) + 
-	geom_line(
-		aes(
-			x=Regressao.Logistica_tpr, 
-			y=Regressao.Logistica_precision
-		), color="red4", size=1.2) +
-	geom_line(
-		aes(
-			x=Naive.Bayes_tpr, 
-			y=Naive.Bayes_precision
-		), color="#b66868", size=1.2) +
-	geom_line(
-		aes(
-			x=Random.Forest_tpr, 
-			y=Random.Forest_precision
-		), color="orange2", size=1.2) +
-	#geom_line(aes(x=Diagonalx, y=Diagonaly), color="gray30", linetype="dotted") +
-	ylab("Precision") + xlab("Recall") + ggtitle("PRC para cada modelo") +
-	my_ggtheme()
-ggplotly(p)
-```
-
-O resultado é tão similar para os modelos que eu tive que usar pontos na visualização em vez de linhas para ter alguma maneira de diferenciar as curvas, mantendo o mesmo arranjo de variáveis em diferentes modelos, o resultado final deve variar muito pouco. Dito isto, vamos continuar com mais uma rodada de testes, para encontrar o melhor modelo para este propósito.
-
 Vamos usar uma validação cruzada, seguindo o [método de Monte Carlo](https://en.wikipedia.org/wiki/Cross-validation_(statistics)#Repeated_random_sub-sampling_validation), mas preservando um conjunto balanceado de treino. O código fonte deste algorítimo e mais informações sobre seu funcionamento podem ser encontrados em [`functions.r`](https://github.com/VFLins/hospitalar_data-pda-tiss/blob/main/scripts/functions.R).
 
 Manter os dados balanceados no treino gera dois problemas: 1- Diminui a quantidade de observações usadas no treino e 2- Desbalanceia ainda mais os dados no teste. Mas estes custos não superam o benefício da remoção de viés no momento do treinamento, a maioria dos modelos pode simplesmente aprender que um evento ocorre mais que o outro, e desconsiderar o impacto das variáveis explicativas.
@@ -637,9 +603,9 @@ Agora que temos os dados de erros dos modelos, podemos obter métricas customiza
 
 -   **F-2 Score**
 
-Como estamos usando um modelo em que as previsões são desbalanceadas, e em que o falso negativo (erro tipo 1) oferece mais custos de negócio que os falsos negativos (erro tipo 2), nossas métricas de erro deve priorizar a capacidade do modelo de prever corretamente os casos positivos e minimizar os erros tipo 1. Por este motivo, ambas as métricas que escolhemos incorporam a *Taxa de Positivo Verdadeiro* (ou *recall*) e o *Valor Preditivo Positivo* (ou *Precision*).
+Como estamos usando um modelo em que as previsões são desbalanceadas, e em que o falso negativo (erro tipo 2) oferece mais custos de negócio que os falsos positivos (erro tipo 1), nossas métricas de erro devem priorizar a capacidade do modelo de prever corretamente os casos positivos e minimizar os erros tipo 2. Por este motivo, ambas as métricas que escolhemos incorporam a *Taxa de Positivo Verdadeiro* (ou *recall*) e o *Valor Preditivo Positivo* (ou *Precision*).
 
-O valor previsto pelos modelos no caso de classificação é interpretado como a probablidade de ocorrência do caso postivo (acionamento do sinistro), há um limiar de 50% definido por padrão na maioria dos casos de previsão, onde a probabilidade maior que este valor é entendida como uma previsão de que o caso positivo acontecerá. Os modelos de classificação podem ser ajustados para capturar mais os casos positivos ou os casos negativos quando alteramos o limiar da probablidade prevista.
+O valor previsto pelos modelos no caso de uma classificação binária é interpretado como a probablidade de ocorrência do caso postivo (acionamento do sinistro), há um limiar de 50% definido por padrão na maioria dos casos de previsão, onde a probabilidade maior que este valor é entendida como uma previsão de que o caso positivo acontecerá. Os modelos de classificação podem ser ajustados para capturar mais os casos positivos ou os casos negativos quando alteramos o limiar da probablidade prevista.
 
 O *Precision-Recall AUC* (PRAUC) é independente do limiar escolhido, e será usado para avaliar a capacidade preditiva geral de cada modelo, já o *F-2 Socore* será usado para definir o limiar ideal, uma vez que o modelo foi escolhido. Agora que já temos os dados da validação cruzada, podemos obter as métricas de desempenho de cada um baseado nos critérios que acabamos de definir.
 
@@ -650,6 +616,13 @@ for (i in seq_along(cvdata)) {
 	print(paste(nm, "PRAUC:", prauc))
 }
 ```
+
+O melhor resultado que obtivemos foi na regressão logística, agora que conseguimos escolher o modelo, vamos definir o limiar de probabilidade que separa o que será classificado como "Acionamento do sinistro" e o que será "Não acionamento do sinistro". Para isso, vamos obter a métrica `F2-score` para um conjunto de limiares possíveis, para economizar tempo de computação, vamos usar 19 possíveis limiares de 5% à 95%.
+
+```{r}
+select_threshold(temp$y_actual, temp$y_predict, plot_=TRUE)
+```
+
 
 ### Avaliando o modelo escolhido
 

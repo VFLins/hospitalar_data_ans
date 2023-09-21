@@ -168,8 +168,7 @@ ncent <- function(sn, sN, inside=T, decimals=2){
 }
 
 # Retorna uma matriz de confusão em formato de array
-confusion_matrix <- function(response_prob, actuals, threshold=0.5){
-	predictions <- (response_prob >= threshold)
+confusion_matrix <- function(predictions, actuals){
 	cm <- c()
 	cm["tp"] = sum(predictions & actuals)
 	cm["fp"] = sum(predictions & !actuals)
@@ -340,4 +339,31 @@ mccv_data <- function(formulas, models, types, dataset, balanced_for=NULL, n_rep
 	}
 
 	return(output)
+}
+
+select_threshold <- function(y_actual, y_probs, plot_=FALSE) {
+	thresholds <- 1:99/100
+	recall <- c(); fnr <- c()
+	
+	for (i in thresholds) {
+		prediction <- {y_probs >= i}
+		cm <- confusion_matrix(y_actual, prediction)
+		tp <- cm[["tp"]]
+		fn <- cm[["fn"]]
+		
+		recall <- c(recall, tp/(tp+fn))
+		fnr <- c(fnr, fn/(fn+tp))
+	}
+	metric <- recall - fnr
+	if (plot_) {
+		val <- thresholds[which.max(metric)]
+		p <- ggplot(data=data.frame(Threshold=thresholds, metric=metric)) +
+			geom_line(aes(x=Threshold, y=metric), color=cores[6]) + 
+			geom_text(aes(x=.9, y=-.7, label=val), color=cores[3]) + 
+			geom_vline(xintercept=val, color=cores[3]) +
+			ylab(NULL) + my_ggtheme()
+		return(plotly::ggplotly(p))
+	} else {
+		return(thresholds[which.max(metric)])
+	}
 }
