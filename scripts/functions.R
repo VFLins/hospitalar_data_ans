@@ -368,3 +368,23 @@ select_threshold <- function(y_actual, y_probs, plot_=FALSE, model_name="o model
 		return(thresholds[which.max(metric)])
 	}
 }
+
+PF_AUC <- function(y_actual, y_probs) {
+	thresholds <- 1:49/50
+	TP <- c(); FN <- c(); FP <- c(); TN <- c()
+	
+	for (i in thresholds) {
+		prediction <- {y_probs >= i}
+		cm <- confusion_matrix(y_actual, prediction)
+		
+		TP <- c(TP, cm[["tp"]])
+		FN <- c(FN, cm[["fn"]])
+		FP <- c(FP, cm[["fp"]])
+		TN <- c(TN, cm[["tn"]])
+	}
+	precision <- TP/(TP+FP)
+	fnr <- FN/(FN+TP)
+	metric <- precision - fnr
+	
+	return(mean(metric, na.rm=T))
+}
