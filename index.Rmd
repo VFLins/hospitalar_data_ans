@@ -611,7 +611,7 @@ O *Precision-Recall AUC* (PRAUC) é independente do limiar escolhido, e será us
 ```{r CV-FIRST-RESULTS}
 for (i in seq_along(cvdata)) {
 	nm <- names(cvdata[i])[1]
-	prauc <- AUC(cvdata[[i]]$y_predict, cvdata[[i]]$y_actual)
+	prauc <- PRAUC(cvdata[[i]]$y_predict, cvdata[[i]]$y_actual)
 	print(paste(nm, "PRAUC:", prauc))
 }
 ```
@@ -634,7 +634,7 @@ select_threshold(
 	temp$y_actual, 
 	temp$y_predict, 
 	plot_=TRUE, 
-	model_name="Regressão logística")
+	model_name="o Random Forest")
 ```
 
 Com isto, temos um modelo escolhido e um limiar definido, agora podemos tirar proveito do [*método holdout*](https://en.wikipedia.org/wiki/Cross-validation_(statistics)#Holdout_method) para obter métricas de previsão com dados que nunca foram usados para treinar o modelo. Assim poderemos simular uma situação em que estamos colocando-o em produção, exposto à novos dados em tempo real.
@@ -646,7 +646,7 @@ Agora chegou a hora de descobrir como este modelo desempenha "no mundo real", va
 ```{r}
 y <- adf$sinistro
 y_pred <- predict(mdl_rf, adf, type="prob")[, "TRUE"]
-confusion_matrix({y_pred >= .94}, y)
+confusion_matrix({y_pred >= .86}, y)
 ```
 
 ```{r}
