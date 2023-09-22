@@ -344,7 +344,7 @@ mccv_data <- function(formulas, models, types, dataset, balanced_for=NULL, n_rep
 
 select_threshold <- function(y_actual, y_probs, plot_=FALSE, model_name="o modelo") {
 	thresholds <- 1:99/100
-	TP <- c(); FN <- c(); FP <- c()
+	TP <- c(); FN <- c(); FP <- c(); TN <- c()
 	
 	for (i in thresholds) {
 		prediction <- {y_probs >= i}
@@ -353,8 +353,9 @@ select_threshold <- function(y_actual, y_probs, plot_=FALSE, model_name="o model
 		TP <- c(TP, cm[["tp"]])
 		FN <- c(FN, cm[["fn"]])
 		FP <- c(FP, cm[["fp"]])
+		TN <- c(TN, cm[["tn"]])
 	}
-	metric <- TP/(2*FN+FP)
+	metric <- TP/(TP+FP) - FN/(FN+TP)
 	if (plot_) {
 		val <- thresholds[which.max(metric)]
 		p <- ggplot(data=data.frame(Threshold=thresholds, metric=metric)) +
