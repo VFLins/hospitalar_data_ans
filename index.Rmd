@@ -598,24 +598,32 @@ cvdata <- readRDS("cv_data.rds")
 
 Agora que temos os dados de erros dos modelos, podemos obter métricas customizadas, não precisamos nos limitar ao que os pacotes do R oferecem por padrão. Para o propósito deste desafio, vamos usar uma métrica customizada que seja mais adequada possível para o problema que estamos enfrentando.
 
-Como estamos usando um modelo em que as previsões são desbalanceadas, e em que o falso negativo (erro tipo 2) oferece mais custos de negócio que os falsos positivos (erro tipo 1), nossas métricas devem priorizar a capacidade do modelo de prever corretamente os casos positivos enquanto minimiza os erros tipo 2. Por este motivo, nossa métrica $M$ incorpora o *Valor Preditivo Positivo* (ou *Precision*) e a Taxa de Falso Negativo:
+Como estamos usando um modelo em que as previsões são desbalanceadas, e em que o falso negativo (erro tipo 2) oferece mais custos de negócio que os falsos positivos (erro tipo 1), nossas métricas devem priorizar a capacidade do modelo de prever corretamente os casos positivos enquanto minimiza os erros tipo 2. Por este motivo, nossa métrica $M$ incorpora o *Valor Preditivo Positivo* (ou *Precision*) e a *Taxa de Falso Negativo*:
 
 $$
-M_L = \frac{TP_L}{(TP_L+FP_L)} - \frac{FN_L}{(FN_L+TP_L)}
+M_L = VPP_L - TFN_L
 $$
 
 O valor previsto pelos modelos no caso de uma classificação binária é interpretado como a probablidade de ocorrência do caso postivo (acionamento do sinistro), há um limiar de 50% definido por padrão na maioria dos casos de previsão, onde a probabilidade maior que este valor é entendida como uma previsão de que o caso positivo acontecerá. Os modelos de classificação podem ser ajustados para capturar mais os casos positivos ou os casos negativos quando alteramos o limiar da probablidade prevista.
 
-Esperamos que nosso modelo seja capaz de maximizar a proporção de valores positivos, assim nós vamos obter o valor des ta métrica para cada limiar $L$, obtemos um valor de $M_L$, que pode oscilar entre 1 e -1, e quanto maior o valor obtido, melhor é o desempenho do modelo nas restrições estabelecidas.
+Esperamos que nosso modelo seja capaz de maximizar a proporção de valores positivos, para cada limiar $L$, nós vamos obter o valor de $M_L$, que pode oscilar entre 1 e -1, e quanto maior o valor obtido, melhor é o desempenho do modelo nas restrições estabelecidas.
 
 Podemos obter um valor de "Area sob a curva" como se obtém com uma métrica conhecida chamada AUC. Mas como neste caso, nossa curva pode aparecer no lado negativo, é possível obter valores negativos desta métrica, podemos considerar um bom modelo aquele que apresenta valor positivo em sua "Área sob a curva", sendo o modelo perfeito aquele com área igual à 1, este teria um bom desempenho .
 
 ```{r CV-FIRST-RESULTS}
+clr <- c("tomato4", cores[6], "orange2")
+
 for (i in seq_along(cvdata)) {
-	nm <- names(cvdata[i])[1]
-	prauc <- avg_metric(cvdata[[i]]$y_actual, cvdata[[i]]$y_predict)
-	print(paste(nm, "média da métrica:", prauc))
+	mdl <- names(cvdata[i])[1]
+	if (i == 1)
+		mauc <- MAUC(cvdata[[i]]$y_actual, cvdata[[i]]$y_predict) |> cbind(mdl)
+	else
+		mauc <- rbind(mauc, {MAUC(cvdata[[i]]$y_actual, cvdata[[i]]$y_predict) |> cbind(mdl)})
 }
+p <- ggplot(mauc, aes(x=threshold, y=metric, color=mdl, fill=mdl)) + 
+	geom_line() + geom_hline(yintercept=0, color=cores[3], linetype="dotted") +	
+	my_ggtheme() + theme(legend.position="none") + scale_color_manual(values=clr)
+ggplotly(p)
 ```
 
 O melhor resultado que obtivemos foi na regressão logística, agora que conseguimos escolher o modelo, vamos definir o limiar de probabilidade que separa o que será classificado como "Acionamento do sinistro" e o que será "Não acionamento do sinistro". Para isso vamos usar uma métrica customizada $M$, que consiste na diferença entre recall e a taxa de falso negativo:
