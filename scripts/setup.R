@@ -162,3 +162,6 @@ pred_df <- data.frame(
 	Naive.Bayes=predict(mdl_nb, df, type="prob")[, "TRUE"],
 	Random.Forest=predict(mdl_rf, df)
 )
+
+# Dados de validação cruzada
+cvdata <- readRDS("cv_data.rds")
