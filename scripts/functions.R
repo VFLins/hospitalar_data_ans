@@ -369,7 +369,7 @@ select_threshold <- function(y_actual, y_probs, plot_=FALSE, model_name="o model
 	}
 }
 
-PF_AUC <- function(y_actual, y_probs) {
+MAUC <- function(y_actual, y_probs) {
 	thresholds <- 1:49/50
 	TP <- c(); FN <- c(); FP <- c(); TN <- c()
 	
@@ -386,5 +386,12 @@ PF_AUC <- function(y_actual, y_probs) {
 	fnr <- FN/(FN+TP)
 	metric <- precision - fnr
 	
-	return(mean(metric, na.rm=T))
+	return(
+		data.frame(
+			threshold=thresholds,
+			vpp=precision,
+			tfn=fnr,
+			metric=metric
+		)
+	)
 }
