@@ -48,9 +48,7 @@ O PDA possui dados para internações e procedimentos hospitalares e ambulatoria
 
 Aqui serão considerados *"Atendimento"*, a junção de todos os *procedimentos* realizados no paciente (Ex.: exames, consultas, internações, remédios, etc.), desde a entrada até sua alta. Foram coletados os dados da tabela **Consolidada**, onde cada observação (linhas) corresponde a um atendimento, e da tabela **Detalhada**, onde as observações correspondem a cada um dos diferentes procedimentos adotados em cada atendimento hospitalar.
 
-Como a tabela **Detalhada** apresenta múltiplas observações para cada atendimento
-
-Estas duas tabelas foram unidas em apenas uma chamada **Unificada**, que repete as observações da tabela **Consolidada** ao longo de suas respectivas ocorrências na tabela **Detalhada**. Além disso, uma nova tabela foi criada aqui para análise, que será chamada de **Agregada**, que agrega a tabela unificada por ocorrência de atendimento.
+Como a tabela **Detalhada** apresenta múltiplas observações para cada atendimento, estas duas tabelas foram unidas em apenas uma chamada **Unificada**, que repete as observações da tabela **Consolidada** ao longo de suas respectivas ocorrências na tabela **Detalhada**. Além disso, uma nova tabela foi criada aqui para análise, que será chamada de **Agregada**, que agrega a tabela unificada por ocorrência de atendimento.
 
 ```{r DADOS, eval=FALSE}
 # tabela unificada
@@ -709,7 +707,7 @@ for (i in seq_along(tests)) {
 out_table(out)
 ```
 
-Aparentemente não existe muita diferença entre os resultados obtidos no teste e na avaliação, mas percebemos que durante a avaliação, o *Random Forest* tem desempenho ligeiramente pior, o que está dentro do esperado em qualquer processo de treinamento e avaliação de modelo.
+Aparentemente não existe muita diferença entre os resultados obtidos no teste e na avaliação, mas percebemos que durante a avaliação, o *Random Forest* tem desempenho ligeiramente pior, o que está dentro do esperado em qualquer processo de treinamento e avaliação de modelo, e não parece ser uma diferença grande o suficiente para se considerar a possibilidade de *overfit*.
 
 Obtivemos valores bem altos em todas as métricas, mas isso se deve em boa parte pela "Facilidade" de obter Verdadeiros Negativos (TN), uma vez que o nosso conjunto de dados é desbalanceado. De maneira geral ainda podemos dizer que nosso modelo tem um bom resultado, considerando todas as limitações que enfrentamos.
 
