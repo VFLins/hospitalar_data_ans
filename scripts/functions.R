@@ -1,5 +1,9 @@
 cores <- c("#272727","#333232","#c2c2c2","#332C2C","#543a3a","#b66868","#976969")
 my_ggtheme <- function() {
+	# Standard ggplot theme
+	
+	# returns: [ggplot:theme]
+	
 	theme_minimal(base_size=14) +
 	theme(
 		plot.title=element_text(color=cores[3]),
@@ -12,13 +16,28 @@ my_ggtheme <- function() {
 	)
 }
 
-# Ordena fatores pela quantidade de ocorrencias para plotar
 order_factor <- function(var, descend=TRUE){
+	# Order factors by number of occurrences
+	
+	# `var`: 	 [vector] of strings or factors
+	# `descend`: [logical] wether or not to sort in descending order
+	
+	# returns:	 [vector] of factors ordered by occurrences
+	
 	if (descend) reorder(var,var,function(x)+length(x))
 	else reorder(var,var,function(x)-length(x))}
 
-# Retorna seleção de valores não outliers de um vetor numérico, usando IQR
-IQRsel <- function(x, sel=F) {
+IQRsel <- function(x, sel=FALSE) {
+	# Selects non-outliers from IQR method
+	
+	# `x`:	  [vector] numeric variable
+	# `sel`:   [logical] wether or not to return logical vector with TRUE for every
+	#			  non-outlier
+	
+	# returns: [vector] of non-outliers in `x` with size <= length(x) 
+	#			  or
+	#			  [vector] of logical indicatinf non-outliers in `x` with size == length(x)
+	
 	iqr <- IQR(x, na.rm=T, type=6)*1.5
 	q1 <- quantile(x, 1/4, names=F, na.rm=T)
 	q3 <- quantile(x, 3/4, names=F, na.rm=T)
@@ -26,8 +45,13 @@ IQRsel <- function(x, sel=F) {
 	else x[x >= q1-iqr & x <= q3+iqr]
 }
 
-# Formato padrão de exibição de tabelas
 out_table <- function(df) {
+	# Standard format for displaying tables
+	
+	# `df`:	  [dataframe]
+	
+	# returns: [flextable::flextable]
+	
 	flextable(df) %>% 
 		theme_zebra(odd_header=cores[5], odd_body=cores[2], even_body=cores[1]) %>% 
 		font(part="all", fontname="Tahoma") %>%
@@ -40,6 +64,12 @@ out_table <- function(df) {
 
 # formatando numeros para exibir em tabela
 format_numbers <- function(x, decimals=2) {
+	# Format numbers to display in tables and plots
+	
+	# `x`:		  [numeric] single value
+	# `decimals`: [integer] of decimal places
+	
+	# returns:	  [string] of `x`
 	formatC(
 		as.numeric(as.character(x)), 
 		digits=decimals, 
@@ -49,8 +79,14 @@ format_numbers <- function(x, decimals=2) {
 	)
 }
 
-# Tabela formatada com medidas de tendencia central e de dispersao para cada variavel
 summary_num <- function(x, vars) {
+	# Formatted table of statistics for numeric data
+	
+	# `x`:	  [dataframe] with all the numeric variables
+	# `vars`:  [vector] of strings with variable names in `x`
+	
+	# returns: flextable::flextable
+	
 	require(dplyr)
 	require(flextable)
 	
@@ -78,8 +114,15 @@ summary_num <- function(x, vars) {
 	out_table(output)
 }
 
-# Tabela de frequencia para os dados categoricos
 freq_table <- function(x, var, sel.var=NULL, sel.fun=function(x)is.numeric(x)){
+	# Frequency table for grouped numeric data
+	
+	# `x`:		 [vector] with numeric data
+	# `var`:		 [string] with variable name
+	# `sel.var`: [string] variable to subset from
+	
+	# returns:	 flextable::flextable
+	
 	require(dplyr)
 	require(flextable)
 	
@@ -107,8 +150,19 @@ freq_table <- function(x, var, sel.var=NULL, sel.fun=function(x)is.numeric(x)){
 	return(tab)
 }
 
-# Grafico de frequencia para os dados categoricos
 freq_plot <- function(x, var, sort=F, aggr.var=NULL, aggr.fun=max, h=NULL, w=800){
+	# Frequency plot for grouped numeric data
+	
+	# `x`:		  [vector] with numeric data
+	# `var`: 	  [string] with variable name
+	# `sort`:	  [logical] wether or not to sort the frequencies
+	# `aggr.var`: [string] variable to aggregate `x`
+	# `aggr.fun`: [function] used to aggregate
+	# `h`:		  [numerical] plot height
+	# `w`:		  [numerical] plot width
+	
+	# retruns:	  plotly::plot_ly
+	
 	require(dplyr)
 	require(ggplot2)
 	require(plotly)
@@ -142,10 +196,19 @@ freq_plot <- function(x, var, sort=F, aggr.var=NULL, aggr.fun=max, h=NULL, w=800
 	ggplotly(plot, width=w, height=h)
 }
 
-# Graficos histograma testando transformações de um conjunto de dados
 dist_transf_plot <- function(
-		x, transf_funcs=list(log=function(x) log(abs(x)), sqrt=function(x) sqrt(abs(x))), 
-		trim_outlier=TRUE, show_original=TRUE, var_name="Valor", title="") {
+	x, transf_funcs=list(log=function(x) log(abs(x)), sqrt=function(x) sqrt(abs(x))), 
+	trim_outlier=TRUE, show_original=TRUE, var_name="Valor") {
+	# Histogram plots testing transformations of a given dataset
+	
+	# `x`:				 [vector] with variable to plot and transform
+	# `transf_funcs`:  [list] with labelled instances of trasnformation functions
+	# `trim_outlier`:  [logical] wether or not trim outliers with IQR method
+	# `show_original`: [logical] include plot of untransformed `x`
+	# `var_name`:		 [string] label for `x`
+	
+	# returns:			 [plotly::plot_ly]
+	
 	x <- na.omit(x)
 	lim <- c(
 		min=quantile(x,1/4,names=F)-IQR(x)*1.5, 
@@ -160,15 +223,25 @@ dist_transf_plot <- function(
 		subplot(nrows = 1)
 }
 
-# Calcula porcentagens e escreve bonitinho
-ncent <- function(sn, sN, inside=T, decimals=2){
+ncent <- function(sn, sN, inside=TRUE, decimals=2){
+	# `sn`:		  [double] to calculate percentage with
+	# `sN`:		  [double] to calculate percentage from
+	# `inside`:	  [logical] TRUE for percentage (n%), FALSE for (100-n%)
+	# `decimals`: [integer] with the ammount of decimal places
+	
+	# returns:	  [string] with tidy percentage number
+	
 	if (inside) percentvalue <- format_numbers(sn*100/sN, decimals=decimals)
 	else percentvalue <- format_numbers(100-(sn*100/sN), decimals=decimals)
 	paste0(percentvalue, "%")
 }
 
-# Retorna uma matriz de confusão em formato de array
 confusion_matrix <- function(predictions, actuals){
+	# `predictions`: [vector] with predicted classification labels
+	# `actuals`:	  [vector] with actual predicted labels
+	
+	# returns:		  [vector] with labelled confusion matrix's elements
+	
 	cm <- c()
 	cm["tp"] = sum(predictions & actuals)
 	cm["fp"] = sum(predictions & !actuals)
@@ -177,9 +250,12 @@ confusion_matrix <- function(predictions, actuals){
 	return(cm)
 }
 
-# Obtem um dataframe com as probabilidades previstas e um vetor com as previsões
-# Retorna um dataframe com tpr e fpr para cada combinação de threshold e modelo
 prc_curve <- function(responses_prob_df, actuals) {
+	# `responses_prob_df`: [dataframe] with predicted probs of multiple models
+	# `actuals`:			  [vector] with actual values
+	
+	# returns:				  [dataframe] with tpr and precision for each threshold
+	
 	responses_prob_df <- as.data.frame(responses_prob_df)
 	thresholds <- c(1:99)/100
 	out <- data.frame(thresholds=thresholds)
@@ -208,6 +284,10 @@ prc_curve <- function(responses_prob_df, actuals) {
 # Retorna um conjunto de dados de validação cruzada no método Monte Carlo com repetições
 mccv_data <- function(formulas, models, types, dataset, balanced_for=NULL, n_repeats=20L, 
 							 test_size=.25, q=.5){
+	# Monte Carlo's method of cross-validation applied to multiple classification models
+	# and a single dataset. Training steps can be forced to be balanced for a given 
+	# variable.
+	
 	# `formulas`:		[vector] of R formulas with variables present in `dataset`
 	# `models`:			[vector] of models compatible with syntax "mdl(formula, data)",
 	#						must be stored as callable, and NOT call (e.g. glm instead of glm()),
@@ -221,6 +301,8 @@ mccv_data <- function(formulas, models, types, dataset, balanced_for=NULL, n_rep
 	# `q`:				[double] between 0 and 1, used only if `balanced_for` is defined,
 	#						smaller value will grant more variability at cost of less data used
 	#						for training
+	
+	# returns:			[list] of dataframes
 							
 	library(dplyr)
 	#checando variáveis
@@ -243,7 +325,7 @@ mccv_data <- function(formulas, models, types, dataset, balanced_for=NULL, n_rep
 			stop("Your `formulas` must have one predicted variable each")
 	}
 		
-	#variáveis e constantes essenciais
+	# essential variables and constants
 	Y_VARIABLES <- c()
 	for (f in formulas)
 		Y_VARIABLES <- c(Y_VARIABLES, all.vars(f[[2]])[[1]])
@@ -252,7 +334,7 @@ mccv_data <- function(formulas, models, types, dataset, balanced_for=NULL, n_rep
 	TRAIN_SIZE <- as.integer(nrow(dataset) - TEST_SIZE)
 	data_index <- 1:nrow(dataset)
 	
-	#definindo critérios para balancear os dados
+	# defining criteria to balance data
 	if (IS_BALANCED) {
 		bal_var <- dataset[[balanced_for]]
 		bal_unique_freqs <- table(bal_var)
@@ -260,10 +342,10 @@ mccv_data <- function(formulas, models, types, dataset, balanced_for=NULL, n_rep
 		TRAIN_SIZE <- GROUP_SIZE * length(bal_unique_freqs)
 	}
 	
-	#ordenando amostras aleatórias de dados
+	# ordering random samples of data
 	if (IS_BALANCED) {
 		CLASSES <- names(bal_unique_freqs)
-		#povoando uma lista com índices de cada classe a ser balanceada no treino
+		# getting index for each class to be balanced
 		classes_index <- list()
 		for (class in CLASSES) {
 			classes_index[[class]] <- data_index[as.character(bal_var) == class]}
@@ -292,7 +374,7 @@ mccv_data <- function(formulas, models, types, dataset, balanced_for=NULL, n_rep
 		}
 	}
 	
-	# treinando e obtendo previsões para todos os conjuntos de treino e teste
+	# training and obtaining predictions for every set of training and evaluation
 	recursive_training <- function(model, model_name, formula, type) {
 		CURRENT_Y_VAR <- all.vars(formula[[2]])[[1]]
 
@@ -318,7 +400,7 @@ mccv_data <- function(formulas, models, types, dataset, balanced_for=NULL, n_rep
 		return(do.call("rbind", results))
 	}
 	
-	#construindo lista de dataframes com resultados para cada modelo
+	# buiding list with one dataframe for each model
 	if (models |> names() |> is.null())
 		names(models) <- paste("model", 1:length(models))
 	model_names <- names(models)
@@ -329,8 +411,7 @@ mccv_data <- function(formulas, models, types, dataset, balanced_for=NULL, n_rep
 		MDL <- models[[iter]]
 		FORMULA <- formulas[[iter]]
 		TYPE <- types[[iter]]
-		#CURRENT_Y_VAR <- Y_VARIABLES[[iter]]
-		
+
 		output[[NAME]] <- recursive_training(
 			model=MDL, 
 			model_name=NAME,
@@ -343,6 +424,13 @@ mccv_data <- function(formulas, models, types, dataset, balanced_for=NULL, n_rep
 }
 
 select_threshold <- function(y_actual, y_probs, plot_=FALSE, model_name="o modelo") {
+	# `y_actual`:	 [vector] with actual values
+	# `y_probs`:	 [vector] with predicted probs
+	# `plot_`:		 [logical] TRUE to plot a curve, FALSE to return a value
+	# `model_name`: [string] used if plot_=TRUE, to fill the plot title
+	
+	# returns:		 [double] or [plotly::plot_ly], depending on `plot_` value
+	
 	thresholds <- 1:99/100
 	TP <- c(); FN <- c(); FP <- c(); TN <- c()
 	
