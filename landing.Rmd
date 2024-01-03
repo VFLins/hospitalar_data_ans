@@ -1,0 +1,69 @@
+---
+title: "Prevendo acionamentos de seguro de Saúde"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(bslib)
+library(htmltools)
+
+navset_pill_list(
+  nav_panel(title = "One", p("First tab content.")),
+  nav_panel(title = "Two", p("Second tab content.")),
+  nav_panel(title = "Three", p("Third tab content")),
+  nav_spacer(),
+  nav_menu(
+    title = "Links",
+    nav_item("oi"),
+    nav_item("bom dia")
+  )
+)
+
+```
+
+A **Agência Nacional de Saúde Suplementar (ANS)** é responsável por regular os planos de saúde no Brasil. Esta agência iniciou o **Plano de Dados abertos (PDA)**, que consiste em solicitar dados para divulgação pública com diversos propósitos, desde o acesso à informação por parte do público como também para ajudar na regulação por parte do próprio órgão.
+
+O PDA possui dados para internações e procedimentos hospitalares e ambulatoriais, mas nesta análise serão tratados apenas os dados de origem hospitalar. A análise realizada aqui é feita a partir de um recorte aleatório de dados do **Padrão para Troca de Informação de Saúde Suplementar (TISS)** para todos os estados do Brasil, mas apenas ao longo do ano de 2019. **Neste projeto, nosso objetivo é:**
+
+1. Coletar dados do ano de 2019, e armazenar em um banco de dados relacional
+2. Usar uma amostra dos dados para realizar análise exploratória (EDA), e treinar um modelo
+3. Testar o modelo treinado com a amostra do passo anterior contra os dados do primeiro passo
+4. Apresentação executiva apresentando o modelo e seu impacto de negócio
+
+Cada etapa deste projeto está descrita em uma página abaixo, sinta-se livre para explorar:
+
+# Coleta de dados
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+#card(
+#  height = 300,
+#  full_screen = FALSE,
+#  card_image(
+#    file = "shiny-hex.svg",
+#    href = "https://github.com/rstudio/shiny"
+#  ),
+#  card_body(
+#    fill = FALSE,
+#    card_title("Shiny for R"),
+#    p(
+#      class = "fw-light text-muted",
+#      "Brought to you by RStudio."
+#    )
+#  )
+#)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
