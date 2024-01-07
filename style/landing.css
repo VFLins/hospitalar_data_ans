@@ -45,6 +45,21 @@ p {
 	text-justify: inter-word;
 }
 
+a {
+    color: #b66868;
+    font-size: 20px;
+    transition: color .15s ease-in-out
+}
+
+a:hover {
+    color: #bf7878;
+    text-decoration: none;
+}
+
+::marker {
+    font-size: 20px;
+}
+
 .h1, .h2, .h3, h1, h2, h3 {
 	margin-top: 40px;
    margin-bottom: 20px;
@@ -80,11 +95,6 @@ pre:not([class]) {
 
 .hljs-number, .hljs-literal {
     color: #ffa400;
-}
-
-a, a:hover {
-    color: #b66868;
-    text-decoration: none;
 }
 
 pre {
@@ -196,7 +206,7 @@ pre {
 }
 
 .bslib-value-box .value-box-grid {
-    background-color: #703e3a;
+    background-color: #8a332c;
 }
 
 .bg-primary{

@@ -13,6 +13,8 @@ library(htmltools)
 library(bsicons)
 ```
 
+----------
+
 # Que dados estamos usando?
 
 A **Agência Nacional de Saúde Suplementar (ANS)** é responsável por regular os planos de saúde no Brasil. Esta agência iniciou o **Plano de Dados abertos (PDA)**, que consiste em solicitar dados para divulgação pública com diversos propósitos, desde o acesso à informação por parte do público como também para ajudar na regulação por parte do próprio órgão.
@@ -23,7 +25,7 @@ O PDA possui dados para internações e procedimentos hospitalares e ambulatoria
 
 O meu objetivo aqui é desenvolver um projeto realista que aborda todos os âmbitos que o trabalho de um cientista de dados pode enfrentar, com dados reais e desafios comuns nesta profissão. O projeto é **dividido em etapas**, sinta-se livre para explorar:
 
-```{r cars, echo = FALSE}
+```{r vbs, echo = FALSE}
 value_boxes <- list(
     value_box(
         title = "1ª Etapa",
@@ -64,6 +66,18 @@ layout_column_wrap(
 )
 ```
 
+----------
+
 # Sobre mim
 
-Se quiser entrar em contato comigo, ou conhecer outros projetos do meu portfólio, [clique aqui](http://sites.google.com/view/vflins/).
+Sou de Palmares, cidade do interior de Pernambuco, e me formei em ciências econômicas no ano de 2022. Depois que descobri a área de dados, decidi que quero participar atuando como Cientista de Dados. Acredito que as coisas que posso fazer com dados são o meu **super poder**.
+
+Você pode querer ver [meus outros projetos](http://sites.google.com/view/vflins/), ou [artigos que tenho escrito](https://sites.google.com/view/vflins/artigos).
+
+Se quiser entrar em contato comigo, tente algum destes links:
+
+- [Linkedin](https://linkedin.com/in/vflins)
+- [Email](mailto:vflins@live.com)
+- [Whatsapp](https://wa.me/558188788208)
+
+----------
