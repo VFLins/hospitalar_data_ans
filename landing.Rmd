@@ -1,69 +1,69 @@
 ---
 title: "Prevendo acionamentos de seguro de Saúde"
-output: html_document
+author: "Vitor Ferreira Lins"
+output: 
+    html_document:
+        css: "style/landing.css"
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(bslib)
 library(htmltools)
-
-navset_pill_list(
-  nav_panel(title = "One", p("First tab content.")),
-  nav_panel(title = "Two", p("Second tab content.")),
-  nav_panel(title = "Three", p("Third tab content")),
-  nav_spacer(),
-  nav_menu(
-    title = "Links",
-    nav_item("oi"),
-    nav_item("bom dia")
-  )
-)
-
+library(bsicons)
 ```
+
+# Que dados estamos usando?
 
 A **Agência Nacional de Saúde Suplementar (ANS)** é responsável por regular os planos de saúde no Brasil. Esta agência iniciou o **Plano de Dados abertos (PDA)**, que consiste em solicitar dados para divulgação pública com diversos propósitos, desde o acesso à informação por parte do público como também para ajudar na regulação por parte do próprio órgão.
 
-O PDA possui dados para internações e procedimentos hospitalares e ambulatoriais, mas nesta análise serão tratados apenas os dados de origem hospitalar. A análise realizada aqui é feita a partir de um recorte aleatório de dados do **Padrão para Troca de Informação de Saúde Suplementar (TISS)** para todos os estados do Brasil, mas apenas ao longo do ano de 2019. **Neste projeto, nosso objetivo é:**
+O PDA possui dados para internações e procedimentos hospitalares e ambulatoriais, mas nesta análise serão tratados apenas os dados de origem hospitalar. A análise realizada aqui é feita a partir de um recorte aleatório de dados do **Padrão para Troca de Informação de Saúde Suplementar (TISS)** para todos os estados do Brasil, mas apenas ao longo do ano de 2019.
 
-1. Coletar dados do ano de 2019, e armazenar em um banco de dados relacional
-2. Usar uma amostra dos dados para realizar análise exploratória (EDA), e treinar um modelo
-3. Testar o modelo treinado com a amostra do passo anterior contra os dados do primeiro passo
-4. Apresentação executiva apresentando o modelo e seu impacto de negócio
+# Qual é o objetivo?
 
-Cada etapa deste projeto está descrita em uma página abaixo, sinta-se livre para explorar:
+O meu objetivo aqui é desenvolver um projeto realista que aborda todos os âmbitos que o trabalho de um cientista de dados pode enfrentar, com dados reais e desafios comuns nesta profissão. O projeto é **dividido em etapas**, sinta-se livre para explorar:
 
-# Coleta de dados
+```{r cars, echo = FALSE}
+value_boxes <- list(
+    value_box(
+        title = "1ª Etapa",
+        value = HTML("<a href='https://github.com/VFLins/hospitalar_data-pda-tiss/blob/main/collector_saude-pda-tiss-hosp-2019.py'>Coleta de dados</a>"),
+        showcase = bs_icon("database-fill-down"),
+        fill = FALSE,
+        p("ETL (Extract, Transform, Load) nos dados da Troca de Informações da Saúde Suplementar (TISS) no período de 2019. Os dados estão presentes em servidores FTP e foram coletados para um banco de dados relacional.")
+    ),
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+    value_box(
+        title = "2ª Etapa",
+        value = HTML("<a href='https://vflins.github.io/hospitalar_data-pda-tiss/'>EDA e Modelagem</a>"),
+        showcase = bs_icon("robot"),
+        fill = FALSE,
+        p("Análise Exploratória entendendo o comportamento das variáveis disponíveis. A partir disto pudemos desenvolver uma solução de Machine Learning com valor de negócio.")
+    ),
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+    value_box(
+        title = "3ª Etapa",
+        value = HTML("<a href=''>Teste do modelo</a>"),
+        showcase = bs_icon("check2-square"),
+        fill = FALSE,
+        p("Testar o modelo ajustado com a amostra no conjunto de dados mais abrangente e tirar conclusões sobre a sua performance.")
+    ),
 
-```{r cars}
-#card(
-#  height = 300,
-#  full_screen = FALSE,
-#  card_image(
-#    file = "shiny-hex.svg",
-#    href = "https://github.com/rstudio/shiny"
-#  ),
-#  card_body(
-#    fill = FALSE,
-#    card_title("Shiny for R"),
-#    p(
-#      class = "fw-light text-muted",
-#      "Brought to you by RStudio."
-#    )
-#  )
-#)
+    value_box(
+        title = "4ª Etapa",
+        value = HTML("<a href=''>Apresentação executiva</a>"),
+        showcase = bs_icon("file-earmark-slides"),
+        fill = FALSE,
+        p("Apresentação de resultados e conquista para stakeholders relevantes para a solução desenvolvida.")
+    )
+)
+
+layout_column_wrap(
+  width = "100%",
+  card(!!!value_boxes)
+)
 ```
 
-## Including Plots
+# Sobre mim
 
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+Se quiser entrar em contato comigo, ou conhecer outros projetos do meu portfólio, [clique aqui](http://sites.google.com/view/vflins/).
