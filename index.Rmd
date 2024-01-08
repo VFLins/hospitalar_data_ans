@@ -15,6 +15,9 @@ library(bsicons)
 
 ----------
 
+![A fotografia mostra uma bolsa de dextrose pendurada num suporte de aço inoxidável](img/marcelo-leal-unsplash.jpg)
+<sub>Foto de **Marcelo Leal** na **Unsplash**</sub>
+
 # Que dados estamos usando?
 
 A **Agência Nacional de Saúde Suplementar (ANS)** é responsável por regular os planos de saúde no Brasil. Esta agência iniciou o **Plano de Dados abertos (PDA)**, que consiste em solicitar dados para divulgação pública com diversos propósitos, desde o acesso à informação por parte do público como também para ajudar na regulação por parte do próprio órgão.
