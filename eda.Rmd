@@ -1,0 +1,715 @@
+---
+title: "Análise dos dados da PDA TISS 2019"
+author: "Vitor Ferreira Lins"
+date: "`r paste('Atualizado no dia', format(Sys.Date(), '%d de %B de %Y'))`"
+output: 
+  html_document:
+    css: "style/document.css"
+    toc: true
+    number_sections: true
+    toc_float:
+      collapsed: false
+    theme: flatly
+    fig_width: 7
+    fig_height: 4
+---
+
+```{r setup, warning=FALSE, message=FALSE}
+
+#### carregando pacotes e scripts ####
+#====================================#
+knitr::opts_chunk$set(
+	echo = TRUE,
+	message = FALSE,
+	warning = FALSE
+)
+
+options(outDec=",",big.mark=".")
+set.seed(3)
+
+library(flextable)
+library(tidyverse)
+library(randomForest)
+library(naivebayes)
+library(plotly)
+library(MLmetrics)
+set_flextable_defaults(scroll=list())
+
+source("scripts/functions.R")
+source("scripts/texts.R")
+source("scripts/setup.R")
+```
+
+# Introdução
+
+A **Agência Nacional de Saúde Suplementar (ANS)** é responsável por regular os planos de saúde no Brasil. Esta agência iniciou o **Plano de Dados abertos (PDA)**, que consiste em solicitar dados para divulgação pública com diversos propósitos, desde o acesso à informação por parte do público como também para ajudar na regulação por parte do próprio órgão.
+
+O PDA possui dados para internações e procedimentos hospitalares e ambulatoriais, mas nesta análise serão tratados apenas os dados de origem hospitalar. A análise realizada aqui é feita a partir de um recorte aleatório de dados do **Padrão para Troca de Informação de Saúde Suplementar (TISS)** para todos os estados do Brasil, mas apenas ao longo do ano de 2019. Nesta análise será observado o comportamento geral de todas as variáveis, além da extração de algum possível valor de negócio nestas informações.
+
+Aqui serão considerados *"Atendimento"*, a junção de todos os *procedimentos* realizados no paciente (Ex.: exames, consultas, internações, remédios, etc.), desde a entrada até sua alta. Foram coletados os dados da tabela **Consolidada**, onde cada observação (linhas) corresponde a um atendimento, e da tabela **Detalhada**, onde as observações correspondem a cada um dos diferentes procedimentos adotados em cada atendimento hospitalar.
+
+Como a tabela **Detalhada** apresenta múltiplas observações para cada atendimento, estas duas tabelas foram unidas em apenas uma chamada **Unificada**, que repete as observações da tabela **Consolidada** ao longo de suas respectivas ocorrências na tabela **Detalhada**. Além disso, uma nova tabela foi criada aqui para análise, que será chamada de **Agregada**, que agrega a tabela unificada por ocorrência de atendimento.
+
+```{r DADOS, eval=FALSE}
+# tabela unificada
+df <- readRDS("data/pda_tiss_hosp_mini.rds")
+
+# corrigindo valores ausentes
+temp <- df[, c("VL_ITEM_EVENTO_INFORMADO", "VL_ITEM_PAGO_FORNECEDOR")]
+temp[is.na(temp)] <- 0
+df[, c("VL_ITEM_EVENTO_INFORMADO", "VL_ITEM_PAGO_FORNECEDOR")] <- temp
+
+# dados com variaveis numericas de interesse agregadas por ocorrencia
+aggnum_df <- df[,c(id_var, numeric_vars)] %>% 
+	group_by(ID_EVENTO_ATENCAO_SAUDE) %>% 
+	summarise(
+		VL_TOTAL_ITENS_INFORMADOS=sum(QT_ITEM_EVENTO_INFORMADO*VL_ITEM_EVENTO_INFORMADO),
+		VL_ITEM_PAGO_FORNECEDOR=sum(VL_ITEM_PAGO_FORNECEDOR),
+		TEMPO_DE_PERMANENCIA=max(TEMPO_DE_PERMANENCIA))
+
+# dados com variaveis categoricas de interesse agregadas por ocorrencia
+aggcat_df <-  df[,c(id_var, categorical_vars)] %>% 
+	group_by(ID_EVENTO_ATENCAO_SAUDE) %>%
+	summarise_at(categorical_vars, max) %>%
+	mutate(ANO_MES_EVENTO=zoo::as.yearmon(ANO_MES_EVENTO))
+
+# tabela agregada
+agg_df <- inner_join(aggcat_df, aggnum_df, by="ID_EVENTO_ATENCAO_SAUDE")
+```
+
+------------------------------------------------------------------------
+
+# Entendendo as variáveis
+
+A primeira característica importante desta análise é a de que vamos focar na "independência" das variáveis. Muitos dados aqui dependem de referências externas, principalmente de dados de tabelas de classificação da [Terminologia Unificada da Saúde Suplementar](https://dados.gov.br/dados/conjuntos-dados/terminologia-unificada-da-saude-suplementar-tuss), e podem ajudar a fazer previsões ou recortes nos dados para determinadas características de atenção, como regime e causa do atendimento. Usando apenas os dados presentes aqui, muitas das possíveis soluções ficam inacessíveis, e portanto estas variáveis serão deixadas de lado.
+
+## Variáveis numéricas
+
+Dentre as variáveis numéricas de maior interesse de negócio podem se incluir:
+
+-   Valores e quantidades de procedimentos/itens assistenciais;
+-   Valor pago ao fornecedor;
+-   Tempo de permanência no atendimento.
+
+Embora com valores numéricos, a maioria das variáveis encontradas na tabela abaixo não são ordinais nem cardinais, ou seja, não podem ser comparadas pelo valor numérico ($a>b$ não se aplica) nem são passíveis de operações aritméticas (não se pode dizer que $a \times b$ será igual a $ab$) respectivamente.
+
+As variáveis marcadas em negrito são as únicas em que estas propriedades mencionadas se aplicam, além de serem as mais indicadas de possuir valor de negócio independentemente. Abaixo, um resumo sobre todas as variáveis numéricas neste conjunto de dados:
+
+```{r table--VARIAVEIS-NUMERICAS}
+temp <- ifelse({names(num_vars1) %in% det_vars}, "Detalhada", "Consolidada")
+temp[1] <- "Unificada"
+temp[21] <- "Agregada"
+data.frame(Nome=names(num_vars1), Descrição=num_vars1, Tabela=temp) %>%
+	out_table() %>% bold(i=c(2, 4:6, 21))
+```
+
+## Variáveis categóricas
+
+Já entre as variáveis categóricas, muitas variáveis ainda podem ser aproveitadas, as variáveis de maior interesse são:
+
+-   Estado;
+-   Data;
+-   Faixa etária e sexo do beneficiário;
+-   Porte e modalidade da operadora de saúde.
+
+As demais variáveis são códigos de referências que deve ser obtidas em tabelas externas para trazer valor de negócio.
+
+```{r table--VARIAVEIS-CATEGORICAS}
+temp <- ifelse({names(cat_vars1) %in% det_vars}, "Detalhada", "Consolidada")
+data.frame(Nome=names(cat_vars1), Descrição=cat_vars1, Tabela=temp) %>%
+	out_table() %>% bold(i=c(2:3, 5:8))
+```
+
+------------------------------------------------------------------------
+
+# Observando de perto
+
+Aqui, vamos ter uma noção um pouco melhor de como os dados se distribuem na amostra, as informações obtidas aqui serão úteis mais adiante na análise.
+
+## Categóricas {#categóricas}
+
+As variáveis categóricas podem oferecer algumas informações interessantes sobre as os dados que temos por aqui. Será bom lembrar que as quantidades observadas para cada valor destas variáveis está reduzida, mas por se tratar de uma amostra aleatória, as proporções devem se manter iguais ou muito próximas.
+
+(Passe o mouse ou encoste o dedo para visualizar os valores)
+
+```{r plot--VARIAVEIS-CATEGORICAS}
+temp <- aggcat_df %>% 
+	mutate_all(order_factor) %>% 
+	pivot_longer(cols=-ID_EVENTO_ATENCAO_SAUDE, values_to="Valor")
+p <- ggplot(temp, aes(Valor)) + 
+	geom_bar(fill=cores[6]) + coord_flip() +
+	facet_wrap(.~name, scales="free", ncol=2) + 
+	labs(y=NULL, x=NULL, title="Frequência das variáveis categóricas selcionadas") + 
+	my_ggtheme() + theme(axis.text.y=element_blank())
+ggplotly(p, height=1000)
+```
+
+As informações que obtemos são:
+
+-   As pessoas parecem procurar mais atendimento ao longo do terceiro trimestre do ano, e menos nos últimos e primeiros meses do ano, com exceção de janeiro;
+-   As pessoas procuram mais atendimento hospitalar a partir da idade adulta, mas surpreendentemente a faixa de "30 a 39 anos" procura bem mais que as outras, inclusive as faixas etárias mais altas;
+-   A maioria das pessoas é atendida por Cooperativas médicas e por empresas de grande porte, mas não necessariamente nas duas modalidades simultaneamente;
+-   A maior parte dos pacientes é do sexo feminino;
+-   Os 3 principais estados em quantidade de atendimentos são: São Paulo, Rio de Janeiro e Minas Gerais; Enquanto que os 3 menores são: Roraima, Acre e Amapá.
+
+Ao observar estas distribuições, algumas dúvidas surgiram:
+
+1.  Como as a modalidade da operadora se relaciona com seu porte?
+2.  Como seriam as distribuições de faixa etária para cada sexo?
+3.  As faixas etárias têm alguma relação com a modalidade?
+
+Estas dúvidas serão sanadas mais adiante em um tópico dedicado.
+
+## Numéricas {#numéricas}
+
+Antes de qualquer coisa, é sempre bom observar as estatísticas de tendência central e de dispersão dos dados, através dela será possível chegar a algumas conclusões importantes:
+
+```{r table--ESTATISTICAS-VARIAVEIS-NUMERICAS}
+temp <- na.omit(aggnum_df)
+summary_num(aggnum_df, agg_numeric_vars)
+```
+
+Depois de ver estas estatísticas, além de distribuições muito assimétricas e dispersas, é possível notar a presença de *outliers*, que são valores anômalos que podem dificultar a nossa vida quando tentamos treinar modelos preditivos, ou simplesmente quando estamos tentando observar os dados.
+
+Além dos outliers, em todas as variáveis numéricas, aproximadamente `r ncent(sum(is.na(aggnum_df[,2])), nrow(aggnum_df), decimals=4)` das observações não possuem nenhum valor definido, nesta seção, todas as análises serão feitas desconsiderando as mesmas, o que nos deixa com `r nrow(na.omit(aggnum_df))` observações analisáveis em todas as variáveis.
+
+Para encontrar os outliers será usada a técnica da Faixa Interquartil (FIQ, ou IQR na sigla em inglês), que é definido por $IQR=Q_3-Q_1$, neste caso, $Q_1$ e $Q_3$ são o primeiro e o terceiro quartis, respectivamente. Este valor será usado para estabelecer um limite de valor mínimo aceitável na amostra, definido por $L_{min}=Q_1-(1,5 \times IQR)$; e um limite de valor máximo, definido por $L_{max}=Q_3+(1,5 \times IQR)$.
+
+### Valor dos procedimentos
+
+A variável "VL_TOTAL_ITENS_INFORMADOS" indica o valor total do atendimento observado. Ao retirar os *outliers*, tornou-se possível visualizar os dados, mas mesmo assim, é observada uma distribuição muito irregular nos dados. Para resolver este problema muitas vezes se adota uma transformação nos dados, e neste caso foi utilizado o [logaritimo natural (ou logaritmo neperiano)](https://pt.wikipedia.org/wiki/Logaritmo_natural) que é uma transformação interpretável e reversível, isto significa que ainda é possível interpretar seus resultados num modelo preditivo e que esta transformação pode ser desfeita sem perder a informação original.
+
+A única desvantagem desta transformação é a necessidade de que todos os valores sejam maiores que zero, mas como a informação desta variável trata de um valor pago em reais, é esperado que a maior parte dos valores relevantes cumpram esta condição, com exceção dos valores zero. Para contornar este problema, uma outra transformação mais simples deverá ser feita para retirar os valores zero sem perder sua informação.
+
+```{r IQR--VL_TOTAL_ITENS_INFORMADOS}
+a <- temp$VL_TOTAL_ITENS_INFORMADOS
+# série transformada: todas as observações em seu logarítmo natural
+b <- tibble(log.val=log(a+1))
+# série original: apagando os outliers
+a <- tibble(val=IQRsel(a))
+```
+
+A série original $a$ contou apenas com a remoção de dados *outiliers* com valor muito alto, pois nenhuma observação se encontrava abaixo do limite mínimo de `r as.integer( quantile(a$val, 1/4, names=F)-(1.5*IQR(a$val)) )`, já que o valor mínimo é `r min(a)`, este procedimento retirou `r ncent(nrow(a), nrow(temp), F)` das observações.
+
+Já na série transformada $b$, cada observação $b_i$ sofreu a transformação de acordo com seu respectivo par $a_i$ na série original pela fórmula $b_i=ln((a_i+1))$. Foi adotado a soma $a_i+1$ nos valores antes de tirar o logaritmo natural por causa da presença de zeros no conjunto de dados, o número $1$ foi adotado por que $ln(1)=0$, logo os valores zero da distribuição original continuam valendo 0 após a transformação, enquanto as demais informações recebem seu respectivo valor exclusivo. Não foi necessário fazer nenhuma remoção de outliers após a transformação dos dados.
+
+```{r plot--VL_TOTAL_ITENS_INFORMADOS}
+p1 <- ggplot(a, aes(val)) + my_ggtheme() + labs(x="a") +
+	geom_histogram(color=cores[6], fill=cores[6], bins=150)
+p2 <- ggplot(b, aes(log.val)) + my_ggtheme() + labs(x="b") +
+		geom_histogram(color=cores[6], fill=cores[6], bins=150) 
+subplot(p1, p2, titleX=TRUE)
+```
+
+Observe como a distribuição muda drasticamente de formato, deixando aquele formato de 'L' e se tornando mais parecido com uma [distribuição normal](https://pt.wikipedia.org/wiki/Ficheiro:Normal_Distribution_PDF.svg). Outra coisa que é possível perceber é que a presença de valores zero que é visível na série original $a$ fica muito explícita após a transformação $b$.
+
+### Valor pago ao fornecedor
+
+A variável "VL_ITEM_PAGO_FORNECEDOR" indica o valor total que o operadora (plano de saúde, seguradora, etc.) pagou diretamente para a fornecedora de serviços de saúde (hospitais, clínicas, etc.). A maior parte das informações obtidas nesta variável é de valores zero, que representam `r ncent(sum(temp$VL_ITEM_PAGO_FORNECEDOR==0), nrow(temp))` das observações. Retirar estes dados nos deixa com apenas `r sum(temp$VL_ITEM_PAGO_FORNECEDOR!=0)` observações para analisar.
+
+Com tantas observações onde o pagamento nem chega a ser feito, um modelo preditivo que tente prever esta variável teria dificuldade de chegar num valor preciso, e provavelmente apresentaria viés, subestimando os valores. Para contornar este problema, deve se observar apenas as observações com valor diferente de zero, talvez seja interessante incluir outro modelo para prever se o pagamento será necessário ou não, assim todas as necessidades de previsão se tornam satisfeitas.
+
+```{r IQR-VL_ITEM_PAGO_FORNECEDOR}
+a <- temp$VL_ITEM_PAGO_FORNECEDOR %>% .[.!=0]
+b <- tibble(log.val=log(a+1))
+a <- tibble(val=IQRsel(a))
+```
+
+Foram removidos `r ncent(nrow(a), nrow(temp[temp$VL_ITEM_PAGO_FORNECEDOR!=0,]), F)` dos dados considerados *outliers* da série original $a$ sem os valores zero. A série modificada $b$ também sofreu a remoção dos valores zero, não sofreu nenhuma remoção de *outlier*.
+
+```{r plot--VL_ITEM_PAGO_FORNECEDOR}
+p1 <- ggplot(a, aes(val)) + my_ggtheme() + labs(x="a") +
+		geom_histogram(color=cores[6], fill=cores[6], bins=150)
+p2 <- ggplot(b, aes(log.val)) + my_ggtheme() + labs(x="b") +
+		geom_histogram(color=cores[6], fill=cores[6], bins=150) 
+subplot(p1, p2, titleX=TRUE)
+```
+
+Neste caso, ao aplicar a mesma transformação com *logaritmo natural* tem o mesmo efeito que observamos anteriormente no valor total pago dos itens e procedimentos ("VL_TOTAL_ITENS_INFORMADOS").
+
+### Dias de permanência
+
+A variável "TEMPO_DE_PERMANENCIA" mede o tempo de permanência no atendimento em dias, se uma pessoa é liberada no mesmo dia em que chega no hospital, o valor informado na variável será 1, se sair no dia seguinte, será 2, e assim sucessivamente. Uma característica que torna esta variável diferente das outras variáveis numéricas é o fato de ser discreta, ou seja, só aceita números inteiros.
+
+```{r IQR-TEMPO_DE_PERMANENCIA}
+a <- temp$TEMPO_DE_PERMANENCIA
+b <- tibble(val=abs(a))
+a <- tibble(val=abs(IQRsel(a)))
+```
+
+Foram removidos `r ncent(nrow(a), nrow(temp), F)` dos dados considerados outliers, usando o método da Faixa Interquartil mencionada anteriormente. Por ser uma variável discreta com relativamente poucos valores possíveis, as transformações reversíveis normalmente não vão trazer mudanças drásticas na sua distribuição.
+
+```{r plot--TEMPO_DE_PERMANENCIA}
+p1 <- ggplot(a, aes(val)) + my_ggtheme() + labs(x="Outliers removidos") +
+		geom_histogram(color=cores[6], fill=cores[6], bins=13)
+p2 <- ggplot(b, aes(val)) + my_ggtheme() + labs(x="Original") +
+		geom_histogram(color=cores[6], fill=cores[6], bins=500)
+subplot(p1, p2, titleX=TRUE)
+```
+
+A duração das internações ocorrem dentro do esperado, de maneira que as mais graves (com necessidade de mais tempo de internação) são bem menos recorrentes. Estou aproveitando que não vou aplicar nenhuma transformação nesta variável para mostrar o impacto de se remover os *outliers* numa variável numérica como esta; esta mudança na distribuição observada acima também ocorre nas demais variáveis numéricas vistas anteriormente.
+
+Deve ser interessante ver como esta variável se relaciona com outras variáveis categóricas como faixa etária, e numéricas como o valor dos itens e procedimentos.
+
+------------------------------------------------------------------------
+
+# Relações e correlações {#relações-e-correlações}
+
+Para medir as relações entre as variáveis com a menor interferência possível, vamos criar um *data frame* com as variáveis numéricas e categóricas, e fazer algumas alterações para facilitar a nossa análise. Primeiramente vamos remover todos os valores faltantes e *outliers* da nossa amostra, e depois vamos incluir as versões transformadas que observamos anteriormente.
+
+```{r DATAFRAME-LIMPO, eval=FALSE}
+temp <- na.omit(agg_df)
+s1 <- IQRsel(temp$VL_TOTAL_ITENS_INFORMADOS, sel=T)
+s2 <- IQRsel(temp$VL_ITEM_PAGO_FORNECEDOR, sel=T)
+s3 <- IQRsel(temp$TEMPO_DE_PERMANENCIA, sel=T)
+
+tidy_df <- temp[s1 & s2 & s3,] %>% 
+	mutate(
+		log.valor_item_inf = log(VL_TOTAL_ITENS_INFORMADOS+1),
+		log.valor_pago_forn = log(VL_ITEM_PAGO_FORNECEDOR+1),
+		TEMPO_DE_PERMANENCIA = abs(TEMPO_DE_PERMANENCIA))
+```
+
+Tirar todos os *outliers* de umas variáveis de um *data frame* pode acabar retirando também valores úteis de outras variáveis, desta maneira a perda de informação acaba indo mais longe que o desejado, dependendo da quantidade de variáveis com *outliers* e da quantidade de observações desta natureza ao longo de cada variável individualmente. Esta limpeza mais brusca retirou `r ncent(nrow(tidy_df), nrow(agg_df), F)` dos dados originais, mas considerando apenas os outliers, a remoção foi de `r ncent(nrow(tidy_df), nrow(na.omit(agg_df)), F)` das observações, mesmo assim, uma perda de informação maior que qualquer remoção individual de *outliers* feita ao longo do tópico 3.2.
+
+Ao realizar estes cortes, uma coisa curiosa aconteceu: todos os valores de "VL_ITEM_PAGO_FORNECEDOR" agora são zero! Tínhamos observado antes que existia uma permanência muito grande de valores zero, e depois de fazer esta limpeza, já temos o primeiro *insight*: A ocorrência de valores diferentes de zero nesta variável pode estar associada com a presença de *outlier(s)* de outra(s) variável(eis); isto quer dizer que estas transferências diretas do seguro/plano de saúde para operadora de saúde estão relacionadas ao caso extremo em alguma outra variável, como valor dos procedimentos e/ou tempo de permanência.
+
+Vamos começar a investigar as correlações por essa possível correlação que encontramos aqui:
+
+## Valor pago ao fornecedor VS variáveis categóricas
+
+Para observar esta variável vamos ter que fazer um corte diferente das demais. Já que existem muitos valores iguais a zero, vamos pegar apenas os diferentes de zero, e depois vamos dar uma olhada em como a presença destes valores se distribui ao longo das variáveis categóricas:
+
+```{r plot--RECORTE-VARIAVEIS-CATEGORICAS}
+temp <- agg_df[agg_df$VL_ITEM_PAGO_FORNECEDOR > 0,]
+
+temp <- temp %>% 
+	mutate_all(order_factor) %>% 
+	pivot_longer(
+		cols=c(SEXO, FAIXA_ETARIA, PORTE, NM_MODALIDADE, 
+				 UF_PRESTADOR, ANO_MES_EVENTO), 
+		values_to="Valor")
+p <- ggplot(temp, aes(Valor)) + 
+	geom_bar(fill=cores[6]) + coord_flip() +
+	facet_wrap(.~name, scales="free", ncol=2) + 
+	labs(
+		y=NULL, x=NULL, 
+		title="Frequência das variáveis categóricas onde o valor<br>pago ao fornecedor é maior que zero") + 
+	my_ggtheme() + theme(axis.text.y=element_blank())
+ggplotly(p, height=900) %>% layout(margin=list(t=150))
+```
+
+A distribuição dessas variáveis se difere da que já observamos antes quando não fizemos recortes nos dados. [Já vimos aqui](#categóricas) como o valor pago ao fornecedor se distribui originalmente ao longo de todas as observações, e a primeira coisa que dá para perceber é a ausência de informações em boa parte das ocorrências em que essa variável tem valor maior que zero.
+
+Nos casos em que há informação, as mudanças mais perceptíveis que obtemos está na faixa etária, onde há uma maior concentração de ocorrências está na faixa dos 30 à 39 anos de idade e entre os idosos, enquanto que neste recorte existe uma concentração entre os adultos de todas as idades; outra grande mudança é regional, a maioria das ocorrências estavam nos estados mais populosos do país, mas neste recorte as ocorrências se concentram primeiramente nos estados mais populosos do nordeste.
+
+## Valor pago ao fornecedor VS valor dos itens e procedimentos
+
+Não será necessário repetir este procedimento para as outras variáveis numéricas, por que nenhuma das outras possui um número de valores zero e faltantes quanto esta. Agora podemos fazer uma análise entre as variáveis numéricas, mas antes de colocar a mão na massa, devemos lembrar das distribuições das variáveis numéricas que [observamos anteriormente](#numéricas). A amostra que temos do "valor pago ao fornecedor" e do "valor dos procedimentos" contém observações muito erráticas mesmo depois da remoção de *outliers*, portanto, o que vamos fazer é comparar suas versões transformadas por logaritmos que também observamos anteriormente.
+
+```{r plot--CORRELACAO-VARIAVEIS-NUMERICAS}
+temp <- agg_df %>% na.omit() %>%
+	.[.$VL_ITEM_PAGO_FORNECEDOR > 0,] %>%
+	mutate(log.vl_itens=log(VL_TOTAL_ITENS_INFORMADOS+1),
+			 log.vl_pago=log(VL_ITEM_PAGO_FORNECEDOR+1))
+
+p <- ggplot(temp, aes(log.vl_pago, log.vl_itens)) + 
+	geom_hex(bins=c(65,30)) +
+	scale_fill_gradient(low="#422e2e", high="#f79494") +
+	geom_smooth(method="lm", formula=y~x, se=F, color=cores[6]) +
+	labs(
+		x="Logaritmo natural do valor pago ao fornecedor", 
+		y="Logaritmo natural do valor dos \nitens e procedimentos") +
+	my_ggtheme()
+
+ggplotly(p)
+```
+
+Este resultado é muito interessante! Aparentemente, o valor pago ao fornecedor está correlacionado com o valor dos procedimentos, numa escala de 0 a 1, o coeficiente de correlação entre eles é de `r cor(temp$log.vl_itens, temp$log.vl_pago)`, o que significa que valores maiores dos itens e procedimentos está geralmente relacionado à valores maiores pagos ao fornecedor. Mas é importante lembrar que só observamos esta correlação após transformar as variáveis, e mais importante, depois de tirar várias observações onde o valor pago ao fornecedor é zero, desfazer qualquer uma destas alterações certamente diminuiria o nível de correlação entre elas.
+
+Depois de vasculhar as demais variáveis, temos o poder de definir as que mais poderiam ajudar a prever a necessidade de um fornecedor pagar, ou até mesmo qual valor seria pago. Uma simples regressão linear (linha reta no gráfico acima) já consegue representar bem a relação entre estas variáveis.
+
+Também dá pra perceber algumas aglomerações curiosas: Uma maior, que está mais inclinada que a reta de regressão, uma pequena que aparenta estar mais horizontalizada que reta da regressão simples, além de alguns dados dispersos que parecem apresentar pouca ou nenhuma correlação entre si no canto superior esquerdo.
+
+Separar estes três grupos que percebemos em conjuntos diferentes pode ajudar a tornar a previsão ainda mais precisa, alguns modelos de previsão podem ser usados para fazer esta separação de maneira dinâmica e automática, sem demandar atenção constante de uma pessoa conforme novos dados forem adicionados.
+
+## Dias de permanência VS valor dos itens e procedimentos
+
+Seria possível esperar que valores maiores gastos em itens e procedimentos no atendimento estejam relacionados a tempos maiores de internação. Neste gráfico abaixo nós podemos ver como estas variáveis se relacionam na prática:
+
+```{r plot--VALOR-DOS-PROCEDIMENTOS-VS-DIAS-PERMANENCIA}
+p <- ggplot(tidy_df, aes(log.valor_item_inf, TEMPO_DE_PERMANENCIA)) +
+	geom_point(alpha=1/20, color=cores[6]) + my_ggtheme() +
+	labs(y=NULL, x="Logarítmo natural do \nvalor total dos procedimentos")
+g <- ggplot(tidy_df, aes(VL_TOTAL_ITENS_INFORMADOS, TEMPO_DE_PERMANENCIA)) +
+	geom_point(alpha=1/20, color=cores[6]) + my_ggtheme() +
+	labs(y="Tempo de permanência (dias)", x="Valor total dos procedimentos\n")
+ggpubr::ggarrange(g, p, nrow=1)
+```
+
+Pelo que podemos ver nos gráficos, existe uma mudança na variância dos valores totais para cada tempo de permanência, explico: podemos ver que qualquer valor é possível nos procedimentos quando o tempo de permanência é igual á 1 dia, mas as possibilidades vão se estreitando conforme o tempo de permanência vai aumentando, na estatística, este comportamento é chamado de (alerta de palavrão) heterocedasticidade.
+
+Quando olhamos para os coeficientes de correlação do tempo de permanência contra o valor dos procedimentos (`r format_numbers(cor(tidy_df$TEMPO_DE_PERMANENCIA, tidy_df$VL_TOTAL_ITENS_INFORMADOS), 4)`) e contra o logaritmo natural da mesma variável (`r format_numbers(cor(tidy_df$TEMPO_DE_PERMANENCIA, tidy_df$log.valor_item_inf), 4)`) são ambos positivos, mas a impressão que temos pelos gráficos é de que estas correlações deveriam apresentar valores negativos e positivos respectivamente. Este é um efeito da heterocedasticidade, quando temos variâncias inconsistentes entre duas variáveis, algumas dessas métricas passam a ser pouco confiáveis.
+
+## Dias de permanência VS variáveis categóricas
+
+Agora vamos poder descobrir que variáveis categóricas descrevem melhor as pessoas que passam mais tempo internadas, e consequentemente o caso oposto também.
+
+### Sexo
+
+Existe uma presença maior de homens entre os que ficam internados por mais dias.
+
+```{r plot--SEXO-VS-DIAS-PERMANENCIA}
+p <- ggplot(tidy_df, aes(y=TEMPO_DE_PERMANENCIA, x=SEXO)) +
+	geom_boxplot(fill=cores[6], outlier.color=cores[3], color=cores[3]) +
+	my_ggtheme() + xlab(NULL) + coord_flip()
+ggplotly(p)
+```
+
+### Faixa etária
+
+Como esperado, as idades maiores estão mais relacionadas à maior tempo de internação, os requisitos mencionados anteriormente podem estar relacionados com a adoção de preços significativamente mais altos para clientes com idades mais altas. Curiosamente os infantes com idade menor que 5 anos também estão entre os que passam mais tempo internados.
+
+```{r plot--FAIXA-ETARIA-VS-TEMPO-DE-PERMANENCIA}
+p <- ggplot(tidy_df, aes(y=TEMPO_DE_PERMANENCIA, x=FAIXA_ETARIA)) +
+	geom_boxplot(fill=cores[6], color=cores[3]) +
+	my_ggtheme() + xlab(NULL) + coord_flip()
+ggplotly(p)
+```
+
+------------------------------------------------------------------------
+
+# Visão de dados
+
+As variáveis mais indicadas para alimentar um modelo de previsão já foram discutidas anteriormente. Agora estas variáveis serão agregadas por internação e separadas em dois grupos: um para treinamento dos modelos e outro para avaliar a qualidade das previsões. O grupo de treinamento será uma amostra aleatória contendo 80% dos dados disponíveis, enquanto que os dados de avaliação serão os demais 20% dos dados que não foram incluídos no grupo de treinamento.
+
+## Prevendo acionamentos de seguro
+
+Os principais negócios interessados no valor deste conjunto de dados seriam as empresas seguradoras de saúde, estas estariam principalmente em prever se haveria necessidade de transferir algum recurso para a fornecedora de saúde (Hospitais e Clínicas, por exemplo). 
+
+Podemos melhorar a qualidade de vida de tais empresas ajudando a reduzir as incertezas sobre o momento em que serão acionadas. Para isso, vamos adicionar uma variável-alvo que represente o evento de acionamento do seguro.
+
+```{r mirror--TARGET-VARIABLE, eval=FALSE}
+# Criando variavel target
+agg_df$sinistro <- agg_df$VL_ITEM_PAGO_FORNECEDOR > 0
+
+# Obtendo informações sobre o balanceamento dos dados
+QTD_ACIONAMENTOS <- sum(agg_df$sinistro)
+QTD_CASOS <- nrow(agg_df)
+```
+
+### Seleção de variáveis
+
+A próxima etapa é escolher as variáveis que podem ajudar nosso modelo preditivo a chegar na resposta esperada com tempestividade. Mas apenas depois que obtivermos um conjunto de dados balanceados, pois apenas `r round(QTD_ACIONAMENTOS/QTD_CASOS*100, 2) |> paste0("%")` das ocorreências registradas apresentam acionamento de seguro, para evitar vieses, o efeito da simples quantidade de observações não pode ser maior que a presença das variáveis explicativas.
+
+```{r mirror--BALANCING-DATASET, eval=FALSE}
+# Obtendo indices de `agg_df`
+df_index <- row.names(agg_df) %>% as.numeric()
+
+# Obtendo indices das amostras balanceadas
+### maximizando a quantidade de observações usando todos os casos positivos
+negative_sample_index <- sample(
+	x=df_index[!agg_df$sinistro], size=QTD_ACIONAMENTOS)
+positive_index <- df_index[agg_df$sinistro]
+mdl_index <- c(negative_sample_index, positive_index)
+
+# Selecionando variáveis úteis
+mdl_cols <- c(
+	"NM_MODALIDADE", "UF_PRESTADOR", "FAIXA_ETARIA", 
+	"ANO_MES_EVENTO", "sinistro")
+
+# Criando novo dataframe com valores de "sinistro" balanceados
+mdl_df <- agg_df[mdl_index, mdl_cols]
+```
+
+### Feature Engineering
+
+Já aprendemos [anteriormente](#relações-e-correlações) como estas variáveis categóricas se relacionam com o acionamento do seguro, o objetivo desta engenharia de variáveis é simplificar a interpretação do modelo, mas principalmente reduzir a quantidade de features aumentando sua importância.
+
+Começando pelo *`NM_MODALIDADE`*, sabemos que "Cooperativa médica" e "Medicina de Grupo" são os tipos de prestadoras com uma maior proporção de acionamentos de seguros, portanto vamos reduzir esta variável para apenas dois níveis, um para o caso de participar de alguma delas, outro para o caso contrário.
+
+```{r mirror--FE-NM_MODALIDADE, eval=FALSE}
+temp <- mdl_df$NM_MODALIDADE
+temp[temp %in% c("Cooperativa Médica", "Medicina De Grupo")] <- "Cooperativa"
+temp[temp %in% c("Seguradora Especializada Em Saúde", 
+					  "Filantropia", "Autogestão", NA)] <- "Não-cooperativa"
+mdl_df["modalidade"] <- factor(temp)
+```
+
+Percebemos também que em *`UF_PRESTADOR`*, os estados do nordeste se tornam mais presentes em relação aos demais, portanto reduzir os estados às suas regiões já deve ser suficiente.
+
+```{r mirror--FE-UF_PRESTADOR, eval=FALSE}
+temp <- mdl_df$UF_PRESTADOR
+temp[temp %in% c("MA", "PI", "CE", "RN", "PB", "PE", "AL", "SE", "BA")] <- "Nordeste"
+temp[temp %in% c("AC", "AP", "AM", "PA", "RO", "RR", "TO")] <- "Norte"
+temp[temp %in% c("GO", "MT", "MS", "DF")] <- "Centro-Oeste"
+temp[temp %in% c("ES", "RJ", "SP", "MG")] <- "Sudeste"
+temp[temp %in% c("PR", "RS", "SC")] <- "Sul"
+mdl_df["regiao"] <- factor(temp)
+```
+
+Embora os mais idosos estejam entre os mais atendidos pelos fornecedores, os adultos estão entre os maiores acionadores de seguro, vamos reduzir esta quantidade excessiva de *`FAIXA_ETARIA`* em apenas 3 (crianças, jovens/adultos e idosos), os casos não identificados formarão um quarto grupo.
+
+```{r mirror--FE-FAIXA_ETARIA, eval=FALSE}
+temp <- mdl_df$FAIXA_ETARIA
+temp[temp %in% c("Não identificado", NA)] <- "Não Identificado"
+temp[temp %in% c("<1", "1 a 4", "5 a 9")] <- "Crianças"
+temp[temp %in% c("10 a 14", "15 a 19", "20 a 29", 
+					  "30 a 39", "40 a 49", "50 a 59")] <- "Jovens/Adultos"
+temp[temp %in% c("60 a 69", "70 a 79", "80 ou mais")] <- "Idosos"
+mdl_df["idade"] <- factor(temp)
+```
+
+Por fim, percebemos também que os seguros são acionados menos vezes nos primeiros três meses do ano, em detrimento dos demais. Vamos agregar os dados em *`ANO_MES_EVENTO`* por trimestres, independentemente do ano.
+
+```{r mirror--MDL1--FE-ANO_MES_EVENTO, eval=FALSE}
+temp <- mdl_df$ANO_MES_EVENTO |> format("%m") |> as.integer()
+
+temp[temp %in% 1:3] <- "Primeiro"
+temp[temp %in% 4:6] <- "Segundo"
+temp[temp %in% 7:9] <- "Terceiro"
+temp[temp %in% 10:12] <- "Quarto"
+mdl_df["trimestre"] <- factor(temp)
+```
+
+Vamos treinar alguns modelos de regressão logística para obter a melhor combinação de variáveis no trabalho de identificar a se um seguro será ou não acionado.
+
+```{r LOGIT-MODEL-FUN}
+logit_model <- function(formula, data)
+	glm(formula=formula, data=data, family=binomial(link="logit"))
+```
+
+```{r mirror--MODELS_SETUP, eval=FALSE}
+# exemplos de modelos testados
+mdl_v1 <- logit_model(sinistro ~ modalidade*idade -1, data=mdl_df)
+mdl_v2 <- logit_model(sinistro ~ modalidade * trimestre, data=mdl_df)
+mdl_v3 <- logit_model(sinistro ~ idade * trimestre * regiao, data=mdl_df)
+mdl_v4 <- logit_model(sinistro ~ modalidade + idade * regiao, data=mdl_df)
+mdl_v5 <- logit_model(sinistro ~ idade * modalidade * regiao, data=mdl_df)
+mdl_v6 <- logit_model(sinistro ~ idade + modalidade * regiao, data=mdl_df)
+mdl_v7 <- logit_model(sinistro ~ trimestre + modalidade * regiao, data=mdl_df)
+mdl_v8 <- logit_model(sinistro ~ trimestre + idade + modalidade * regiao, data=mdl_df)
+mdl_v9 <- logit_model(sinistro ~ idade + trimestre * modalidade * regiao, data=mdl_df)
+```
+
+Depois de passar um tempo testando as variáveis e suas interações, as melhores combinações são aquelas em que o `trimestre` e a `idade` não interagem com as demais variáveis, entre as modelagens listadas acima, as de número 6, 7 e 8 mostraram coeficientes estatisticamente mais significantes que os demais, por obedecerem esta condição.
+
+Usando o Critério de Informação de Akaike (AIC) como desempate, a formulação do `mdl_v8` se mostrou a mais eficiente. Vamos considerar esta modelagem nas análises adiante, mas antes, vamos ver algumas estatísticas em relação à este modelo.
+
+```{r SELECTED_MODEL_STATS}
+form1 <- sinistro ~ trimestre + idade + modalidade * regiao
+mdl_lg <- logit_model(form1, data=mdl_df)
+summary(mdl_lg)
+```
+
+### Comparando a Regressão Logística com outros modelos
+
+Vamos adicionar mais alguns modelos com a mesma configuração de variáveis, para este caso, vamos incluir os modelos "Naive Bayes" e "Random Forest". Este último é conhecido na literatura por ser usado em modelagens de Churn e desempenhar bem, comparado com os demais que estamos usando.
+
+```{r ALTERNATIVE_MODELS, warning=FALSE}
+form2 <- factor(sinistro) ~ trimestre + idade + modalidade * regiao
+
+mdl_nb <- naive_bayes(form1, data=mdl_df)
+mdl_rf <- randomForest(form2, data=mdl_df)
+```
+
+A métrica de Akaike foi muito útil para escolher entre as regressões logísticas, mas não vai ser útil para comparar a regressão com os demais modelos, para isto, vamos computar a Área Sob a Curva ROC (AUC), esta curva delimita a relação de custo/recompensa de verdadeiro-positivo e falso-positivo para cada limiar de probabilidade de acionamento do seguro escolhida.
+
+Para aumentar a quantidade de verdadeiro-positivos, um limiar de probabilidade mais alto deve ser escolhido, mas ao custo de aumentar o número de falso-positivos. Esta "taxa de troca" não é constante, por isso se trata de uma curva, e quanto maior a àrea sob esta curva, melhor o modelo se ajusta para toda combinação de limiares possíveis. Vamos obter a curva ROC considerando dados em `df`, que representam melhor as condições dos dados na vida real, para isto, vamos replicar o *feature engineering* que fizemos antes:
+
+```{r mirror--DF_FEATURE_ENGINEERING, eval=FALSE}
+df$sinistro <- df$VL_ITEM_PAGO_FORNECEDOR > 0
+
+temp <- df$NM_MODALIDADE
+temp[temp %in% c("Cooperativa Médica", "Medicina De Grupo")] <- "Cooperativa"
+temp[temp %in% c("Seguradora Especializada Em Saúde", 
+					  "Filantropia", "Autogestão", NA)] <- "Não-cooperativa"
+df["modalidade"] <- factor(temp)
+
+temp <- df$UF_PRESTADOR
+temp[temp %in% c("MA", "PI", "CE", "RN", "PB", "PE", "AL", "SE", "BA")] <- "Nordeste"
+temp[temp %in% c("AC", "AP", "AM", "PA", "RO", "RR", "TO")] <- "Norte"
+temp[temp %in% c("GO", "MT", "MS", "DF")] <- "Centro-Oeste"
+temp[temp %in% c("ES", "RJ", "SP", "MG")] <- "Sudeste"
+temp[temp %in% c("PR", "RS", "SC")] <- "Sul"
+df["regiao"] <- factor(temp)
+
+temp <- df$FAIXA_ETARIA
+temp[temp %in% c("Não identificado", NA)] <- "Não Identificado"
+temp[temp %in% c("<1", "1 a 4", "5 a 9")] <- "Crianças"
+temp[temp %in% c("10 a 14", "15 a 19", "20 a 29", 
+					  "30 a 39", "40 a 49", "50 a 59")] <- "Jovens/Adultos"
+temp[temp %in% c("60 a 69", "70 a 79", "80 ou mais")] <- "Idosos"
+df["idade"] <- factor(temp)
+
+temp <- df$ANO_MES_EVENTO |> as.Date() |> format("%m") |> as.integer()
+
+temp[temp %in% 1:3] <- "Primeiro"
+temp[temp %in% 4:6] <- "Segundo"
+temp[temp %in% 7:9] <- "Terceiro"
+temp[temp %in% 10:12] <- "Quarto"
+df["trimestre"] <- factor(temp)
+```
+
+Depois vamos guardar uma amostra destes dados para avaliar os modelos somente depois de realizar todos os experimentos. assim teremos um conjunto de dados que sabemos que nunca foi usado para treinamento de modelos, para isso vamos usar uma amostra de 10% dos dados em `df`:
+
+```{r mirror--DATA_SPLIT, eval=FALSE}
+var_cols <- c("sinistro", "modalidade", "regiao", "idade", "trimestre")
+df_index <- 1:nrow(df)
+adf_index <- sample(x=df_index, size=129451)
+
+# dados de avaliação
+adf <- df[adf_index, var_cols]
+# dados de treinamento
+tdf <- df[!(df_index %in% adf_index), var_cols]
+```
+
+Agora podemos obter os valores das previsões de cada modelo, e colocá-las lado a lado em um *data frame*:
+
+```{r PREDICTIONS_TABLE, warning=FALSE}
+pred_df <- data.frame(
+	y=tdf$sinistro,
+	Regressao.Logistica=predict(mdl_lg, tdf),
+	Naive.Bayes=predict(mdl_nb, tdf, type="prob")[, "TRUE"],
+	Random.Forest=predict(mdl_rf, tdf, type="prob")[, "TRUE"]
+)
+```
+
+Vamos usar uma validação cruzada, seguindo o [método de Monte Carlo](https://en.wikipedia.org/wiki/Cross-validation_(statistics)#Repeated_random_sub-sampling_validation), mas preservando um conjunto balanceado de treino. O código fonte deste algorítimo e mais informações sobre seu funcionamento podem ser encontrados em [`functions.r`](https://github.com/VFLins/hospitalar_data-pda-tiss/blob/main/scripts/functions.R).
+
+Manter o equilíbrio da quantidade de observações de cada classe no treino gera dois problemas: 1- Diminui a quantidade de observações usadas no treino e 2- Desequilibra ainda mais os dados no teste. Mas estes custos não superam o benefício da remoção de viés no momento do treinamento, a maioria dos modelos pode simplesmente aprender que um evento ocorre mais que o outro, e desconsiderar o impacto das variáveis explicativas.
+
+O método de Monte Carlo foi escolhido no lugar do K-Fold, pois este apresenta menor variância para as métricas, o que será um bom equiliíbrio, uma vez que já estamos controlando os modelos para viés. Assim estamos buscando um equilíbrio no *trade-off* conhecido entre viés e variância. A quantidade de 16 repetições foi escolhida devido a limitações computacionais.
+
+```{r CROSS-VALIDATION, eval=FALSE}
+cvdata <- mccv_data(
+	formulas=c(form1, form1, form2),
+	models=c(LogReg=logit_model, NBayes=naive_bayes, RndFst=randomForest),
+	types=c("response", "prob", "prob"),
+	dataset=tdf,
+	balanced_for="sinistro",
+	n_repeats=16)
+```
+
+Agora que temos os dados de erros dos modelos, podemos obter métricas customizadas, não precisamos nos limitar ao que os pacotes do R oferecem por padrão. Para o propósito deste desafio, vamos usar uma métrica customizada que seja mais adequada possível para o problema que estamos enfrentando.
+
+Como estamos usando um modelo em que as previsões são desbalanceadas, e em que o falso negativo (erro tipo 2) oferece mais custos de negócio que os falsos positivos (erro tipo 1), nossas métricas devem priorizar a capacidade do modelo de prever corretamente os casos positivos enquanto minimiza os erros tipo 2. Por este motivo, nossa métrica $M$ incorpora o *Valor Preditivo Positivo* (ou *Precision*) e a *Taxa de Falso Negativo*:
+
+$$
+M_L = VPP_L - TFN_L
+$$
+
+O valor previsto pelos modelos no caso de uma classificação binária é interpretado como a probablidade de ocorrência do caso postivo (acionamento do sinistro), há um limiar de 50% definido por padrão na maioria dos casos de previsão, onde a probabilidade maior que este valor é entendida como uma previsão de que o caso positivo acontecerá. Os modelos de classificação podem ser ajustados para capturar mais os casos positivos ou os casos negativos quando alteramos o limiar da probablidade prevista.
+
+Esperamos que nosso modelo seja capaz de maximizar a proporção de valores positivos, para cada limiar $L$, nós vamos obter o valor de $M_L$, que pode oscilar entre 1 e -1, e quanto maior o valor obtido, melhor é o desempenho do modelo nas restrições estabelecidas.
+
+Podemos obter um valor de "Area sob a curva" como se obtém com uma métrica conhecida chamada AUC. Mas como neste caso, nossa curva pode aparecer no lado negativo, é possível obter valores negativos desta métrica, podemos considerar um bom modelo aquele que apresenta valor positivo em sua "Área sob a curva", sendo o modelo perfeito aquele com área igual à 1, este teria um bom desempenho .
+
+```{r CV-FIRST-RESULTS}
+for (i in seq_along(cvdata)) {
+	mdl <- names(cvdata[i])[1]
+	if (i == 1)
+		mauc <- MAUC(cvdata[[i]]$y_actual, cvdata[[i]]$y_predict) |> cbind(mdl)
+	else
+		mauc <- rbind(mauc, {MAUC(cvdata[[i]]$y_actual, cvdata[[i]]$y_predict) |> cbind(mdl)})
+}
+
+temp <- mauc[, c("mdl", "threshold", "metric")] %>% 
+	pivot_wider(names_from=mdl, values_from=metric, id_cols=threshold)
+
+clr <- c("salmon2", cores[6], "orange2")
+mns <- c(
+	lg=mean(temp$LogReg, na.rm=T), 
+	nb=mean(temp$NBayes, na.rm=T), 
+	rf=mean(temp$RndFst, na.rm=T)) |> round(5)
+p1 <- ggplot(data=temp) + 
+	geom_line(aes(x=threshold, y=LogReg), color=clr[1]) + 
+	geom_text(aes(x=.89, y=-.6), label=mns["lg"], color=clr[1]) +
+	geom_hline(yintercept=0, color=cores[3], linetype="dotted") +
+	my_ggtheme()
+p2 <- ggplot(data=temp) + 
+	geom_line(aes(x=threshold, y=NBayes), color=clr[2]) + 
+	geom_text(aes(x=.88, y=-.6), label=mns["nb"], color=clr[2]) +
+	geom_hline(yintercept=0, color=cores[3], linetype="dotted") +
+	my_ggtheme()
+p3 <- ggplot(data=temp) + 
+	geom_line(aes(x=threshold, y=RndFst), color=clr[3]) + 
+	geom_text(aes(x=.9, y=.01), label=mns["rf"], color=clr[3]) +
+	geom_hline(yintercept=0, color=cores[3], linetype="dotted") +
+	my_ggtheme()
+
+subplot(p1, p2, p3, nrows=3, titleY=T)
+```
+
+O melhor resultado que obtivemos foi no *Random Forest*, já que além de se manter mais alto acima de zero, também o está em mais pontos diferentes. Considerando o espaço entre a curva e a linha de zero como sua área, o *Naive Bayes* possui uma área maior abaixo da linha que acima, e obtemos um valor negativo, este é um desempenho muito indesejável.
+
+Agora que conseguimos escolher o modelo, vamos definir o limiar de probabilidade que separa o que será classificado como "Acionamento do sinistro" e o que será "Não acionamento do sinistro". Para isso vamos usar a mesma métrica customizada $M$, mas desta vez vamos considerar o ponto de limiar que maximiza o valor da métrica. Ainda a partir dos dados da validação cruzada:
+
+```{r CV-THRESHOLD-SELECT}
+temp <- cvdata$RndFst
+select_threshold(
+	temp$y_actual, 
+	temp$y_predict, 
+	plot_=TRUE, 
+	model_name="o Random Forest")
+```
+
+Com isto, temos um modelo escolhido e um limiar definido, agora podemos tirar proveito do [*método holdout*](https://en.wikipedia.org/wiki/Cross-validation_(statistics)#Holdout_method) para obter métricas de previsão com dados que nunca foram usados para treinar o modelo. Assim poderemos simular uma situação em que estamos colocando-o em produção, exposto à novos dados em tempo real.
+
+### Avaliando o modelo escolhido
+
+Agora chegou a hora de descobrir como este modelo desempenha "no mundo real", vamos usar o recorte de dados que criamos anteriormente para avaliação para obter uma matriz de confusão:
+
+```{r SOLUTION-CONFUSION-MATRIX}
+y <- adf$sinistro
+y_pred <- predict(mdl_rf, adf, type="prob")[, "TRUE"]
+confusion_matrix({y_pred >= .86}, y)
+```
+
+Baseado nos nossos testes, este é o cenário em que o modelo tem o melhor balanço entre os Positivos Verdadeiros (tp) e os Falsos Negativos (fn). Podemos encontrar o melhor limiar para estes dados e descobrir se o novo valor se diferencia muito do que já obtivemos antes.
+
+```{r SOLUTION-BEST-THRESHOLD}
+select_threshold(y, y_pred, plot_=TRUE, model_name="o Random Forest em produção")
+```
+
+Graças à ajuda da validação cruzada conseguimos um valor de limiar muito próximo do ideal para este conjunto de avaliação. Vamos preparar nossa bateria de testes:
+
+```{r TESTS-SETUP}
+f2_score <- function(y_true, y_pred) 
+	FBeta_Score(y_true=y_true, y_pred=y_pred, beta=2)
+
+y_test <- cvdata$RndFst$y_actual
+y_test_pred <- cvdata$RndFst$y_predict
+
+tests <- c(`Acurácia`=Accuracy, `Precisão`=Precision, TPR=Recall, F2=f2_score)
+```
+
+Para comparar seu desempenho durante o teste, e agora, durante a avaliação:
+
+```{r table--TRAIN-METRICS}
+for (i in seq_along(tests)) {
+	name <- names(tests)[[i]]
+	test <- tests[[i]]
+	tr_result <- test(y_true=y_test, y_pred={y_test_pred >= .86})
+	ev_result <- test(y_true=y, y_pred={y_pred >= .86})
+	
+	if (i == 1)
+		out <- data.frame(
+			Teste=name, 
+			Treinamento=tr_result,
+			Avaliação=ev_result
+		)
+	else
+		out <- rbind(out, data.frame(
+			Teste=name, 
+			Treinamento=tr_result,
+			Avaliação=ev_result))
+}
+out_table(out)
+```
+
+Aparentemente não existe muita diferença entre os resultados obtidos no teste e na avaliação, mas percebemos que durante a avaliação, o *Random Forest* tem desempenho ligeiramente pior, o que está dentro do esperado em qualquer processo de treinamento e avaliação de modelo, e não parece ser uma diferença grande o suficiente para se considerar a possibilidade de *overfit*.
+
+Obtivemos valores bem altos em todas as métricas, mas isso se deve em boa parte pela "Facilidade" de obter Verdadeiros Negativos (TN), uma vez que o nosso conjunto de dados é desbalanceado. De maneira geral ainda podemos dizer que nosso modelo tem um bom resultado, considerando todas as limitações que enfrentamos.
+
+Obrigado pela leitura!
