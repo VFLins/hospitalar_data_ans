@@ -46,14 +46,18 @@ p {
 }
 
 a {
-    color: #b66868;
-    font-size: 20px;
+    color: #c99696;
+    font-size: inherit;
     transition: color .15s ease-in-out
 }
 
 a:hover {
     color: #bf7878;
     text-decoration: none;
+}
+
+a:focus, a:hover {
+	color: #bf7878;
 }
 
 ::marker {
@@ -189,10 +193,6 @@ pre {
     font-size: 4rem;
     font-weight: bold;
     transition: color .15s ease-in-out
-}
-
-.bslib-value-box .value-box-area>:nth-child(2):hover{
-    color: #ffbbbb;
 }
 
 .bslib-card .card-body p{

@@ -15,8 +15,8 @@ library(bsicons)
 
 ----------
 
-![A fotografia mostra uma bolsa de dextrose pendurada num suporte de aço inoxidável](img/marcelo-leal-unsplash.jpg)
-<sub>Foto de **Marcelo Leal** na **Unsplash**</sub>
+![](img/hospital_banner.jpeg)
+
 
 # Que dados estamos usando?
 
@@ -48,7 +48,7 @@ value_boxes <- list(
 
     value_box(
         title = "3ª Etapa",
-        value = HTML("<a href=''>Teste do modelo</a>"),
+        value = "Teste do modelo",
         showcase = bs_icon("check2-square"),
         fill = FALSE,
         p("Testar o modelo ajustado com a amostra no conjunto de dados mais abrangente e tirar conclusões sobre a sua performance.")
@@ -56,7 +56,7 @@ value_boxes <- list(
 
     value_box(
         title = "4ª Etapa",
-        value = HTML("<a href=''>Apresentação executiva</a>"),
+        value = "Apresentação executiva",
         showcase = bs_icon("file-earmark-slides"),
         fill = FALSE,
         p("Apresentação de resultados e conquista para stakeholders relevantes para a solução desenvolvida.")
