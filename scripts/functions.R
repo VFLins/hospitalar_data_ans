@@ -12,7 +12,9 @@ my_ggtheme <- function() {
 		panel.grid=element_line(color=cores[2]),
 		axis.text=element_text(color=cores[3], size=9),
 		axis.title=element_text(color=cores[3]),
-		strip.text=element_text(color=cores[3], face="bold", size=16)
+		strip.text=element_text(color=cores[3], face="bold", size=16),
+		legend.title=element_text(color=cores[1]),
+		legend.text=element_text(color=cores[3])
 	)
 }
 
