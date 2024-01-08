@@ -40,7 +40,7 @@ value_boxes <- list(
 
     value_box(
         title = "2ª Etapa",
-        value = HTML("<a href='https://vflins.github.io/hospitalar_data-pda-tiss/'>EDA e Modelagem</a>"),
+        value = HTML("<a href='https://vflins.github.io/hospitalar_data-pda-tiss/eda.html'>EDA e Modelagem</a>"),
         showcase = bs_icon("robot"),
         fill = FALSE,
         p("Análise Exploratória entendendo o comportamento das variáveis disponíveis. A partir disto pudemos desenvolver uma solução de Machine Learning com valor de negócio.")
