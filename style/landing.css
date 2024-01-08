@@ -209,6 +209,10 @@ pre {
     background-color: #8a332c;
 }
 
+.bslib-value-box.default {
+	background-color: #121212;
+}
+
 .bg-primary{
     background-color: #121212;
 }
