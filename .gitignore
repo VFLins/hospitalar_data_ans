@@ -44,4 +44,5 @@ vignettes/*.pdf
 *.db
 
 # Python cahche files
-/__pycache__/
+*/__pycache__/
+*.pyc
