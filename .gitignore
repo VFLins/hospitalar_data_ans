@@ -38,4 +38,10 @@ vignettes/*.pdf
 
 # R Environment Variables
 .Renviron
+
+# Databases
 *.sqlite
+*.db
+
+# Python cahche files
+/__pycache__/
