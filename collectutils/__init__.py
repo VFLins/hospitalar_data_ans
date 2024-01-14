@@ -2,6 +2,7 @@ import os
 import re
 import asyncio
 import ftplib
+from prefs import Conf
 from typing import Optional, Sequence
 from shutil import unpack_archive
 
@@ -9,7 +10,6 @@ async def download_file(
         ftp:                ftplib.FTP, 
         local_file_path:    str, 
         semaphore:          asyncio.Semaphore, 
-        verbose:            bool=False
         ):
      
     """
@@ -22,7 +22,6 @@ async def download_file(
     - ftp (`ftplib.FTP`): Should be already placed on desired remote path with files to be downloaded, using `ftplib.FTP.cwd("/the/remote/path")`;
     - local_file_path (`str`):  Full path of where the file will be downloaded;
     - semaphore (`asyncio.Semaphore`): A semaphore to limit the number of concurrent downloads;
-    - verbose (`bool`): Whether to print progress messages. Defaults to False.
     """
 
     async with semaphore:
@@ -32,23 +31,22 @@ async def download_file(
             filename = os.path.basename(local_file_path)
 
             try:
-                if verbose:
+                if Conf.verbose:
                     print(f"retrieving {filename}...")
 
                 ftp.retrbinary(f"RETR {filename}", local_file.write)
 
             except Exception as UnexpectedError:
                 print(f"Error downloading {filename}")
-                if verbose:
+                if Conf.verbose:
                     print(UnexpectedError)
 
 async def download_from_folder(
-        ftp:ftplib.FTP, 
-        remote_path:str, 
-        local_path:str, 
-        max_concurrent_jobs=20, 
-        verbose=False,
-        stops_with:Optional[int]=None
+        ftp:                    ftplib.FTP, 
+        remote_path:            str, 
+        local_path:             str, 
+        max_concurrent_jobs:    int=20, 
+        stops_with:             Optional[int]=None
         ):
 
     """
@@ -60,7 +58,6 @@ async def download_from_folder(
     - remote_path (`str`): Remote path on FTP server to desired files;
     - local_path (`str`): Local path where files should be dumped;
     - max_concurrent_jobs (`int`): Maximum number of concurrent downloads. Defaults to 20;
-    - verbose (`bool`): Whether to print progress messages. Defaults to False;
     - stops_with (`int` or `None`): If not `None`, defines the maximum amount of files to be downloaded, otherwise download every file in `remote_path`. Defaults to `None`.
     """
 
@@ -71,7 +68,7 @@ async def download_from_folder(
     while retry > 0:
         try:
 
-            if verbose:
+            if Conf.verbose:
                 print(f"connecting to {remote_path}")
 
             ftp.cwd(remote_path)
@@ -93,7 +90,7 @@ async def download_from_folder(
     for idx, filename in enumerate(filenames):
         remote_filename = os.path.join(local_path, filename)
 
-        if verbose:
+        if Conf.verbose:
             print(f"Processing {idx} files", end="\r")
 
         if stops_with and stops_with==idx:
@@ -106,12 +103,12 @@ async def download_from_folder(
         
     await asyncio.gather(*tasks)
 
-    if verbose:
+    if Conf.verbose:
         print("Completed!")
 
 def extract_and_organize(
-        path:str, 
-        files_prefixes:Sequence[str]=["cons", "det"]
+        path:           str, 
+        files_prefixes: Sequence[str]=["cons", "det"]
         ):
     
     """
