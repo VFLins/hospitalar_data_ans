@@ -7,4 +7,4 @@ Este projeto usa dados hospitalares abertos do sistema de Troca de Informação 
 3. Análise completa das variáveis presentes mais relevantes
 4. Desenvolvimento de uma solução de Machine Learning com valor de negócio
 
-Para mais informações e documentação, [clique aqui](https://vflins.github.io/hospitalar_data-pda-tiss/).
+Para mais informações e documentação, [clique aqui](https://vflins.github.io/hospitalar_data_ans/).
