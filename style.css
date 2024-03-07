@@ -17,14 +17,15 @@ body {
 }
 
 h1.title {
-    font-size: 38px;
+    font-size: 42px;
     text-align: center;
     font-weight: bold;
 }
 
 h1 {
-    font-size: 26px;
+    font-size: 36px;
     font-weight: bold;
+    margin-bottom: 10px;
 }
 
 h2 {
@@ -38,14 +39,34 @@ h4 {
 }
 
 p {
+    font-size: 20px;
 	margin: 0 0 15px 0;
 	text-align: justify;
 	text-justify: inter-word;
 }
 
+a {
+    color: #c99696;
+    font-size: inherit;
+    transition: color .15s ease-in-out
+}
+
+a:hover {
+    color: #bf7878;
+    text-decoration: none;
+}
+
+a:focus, a:hover {
+	color: #bf7878;
+}
+
+::marker {
+    font-size: 20px;
+}
+
 .h1, .h2, .h3, h1, h2, h3 {
-	margin-top: 30px;
-   margin-bottom: 5px;
+	margin-top: 40px;
+   margin-bottom: 20px;
 }
 
 hr {
@@ -78,11 +99,6 @@ pre:not([class]) {
 
 .hljs-number, .hljs-literal {
     color: #ffa400;
-}
-
-a, a:hover {
-    color: #b66868;
-    text-decoration: none;
 }
 
 pre {
@@ -168,3 +184,35 @@ pre {
 	background-color: #543A3A; 
 }
 
+.bslib-value-box .value-box-area>:nth-child(1){
+    font-size: medium;
+    font-weight: bold;
+}
+
+.bslib-value-box .value-box-area>:nth-child(2){
+    font-size: 4rem;
+    font-weight: bold;
+    transition: color .15s ease-in-out
+}
+
+.bslib-card .card-body p{
+    font-size: medium;
+    padding-right: 30px
+}
+
+.html-fill-container {
+    border-radius: 5px;
+    padding: 5px;
+}
+
+.bslib-value-box .value-box-grid {
+    background-color: #8a332c;
+}
+
+.bslib-value-box.default {
+	background-color: #121212;
+}
+
+.bg-primary{
+    background-color: #121212;
+}

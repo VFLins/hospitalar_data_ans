@@ -9,7 +9,7 @@ source("scripts/texts.R")
 #### Carregando dados ####
 #========================#
 # tabela unificada
-df <- readRDS("pda_tiss_hosp_mini.rds")
+df <- readRDS("data/pda_tiss_hosp_mini.rds")
 
 # corrigindo valores ausentes
 temp <- df[, c("VL_ITEM_EVENTO_INFORMADO", "VL_ITEM_PAGO_FORNECEDOR")]
@@ -164,4 +164,4 @@ pred_df <- data.frame(
 )
 
 # Dados de validação cruzada
-cvdata <- readRDS("cv_data.rds")
+cvdata <- readRDS("data/cv_data.rds")
