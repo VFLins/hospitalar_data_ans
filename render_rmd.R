@@ -7,6 +7,6 @@ library(rmarkdown)
 
 render(
     input = paste0("notebooks/", args[1], ".Rmd"),
-    output_dir = getwd(),
+    output_dir = paste0(getwd(), "/pages/"),
     knit_root_dir = getwd()
 )
