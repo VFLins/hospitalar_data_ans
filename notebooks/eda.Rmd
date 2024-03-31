@@ -4,7 +4,7 @@ author: "Vitor Ferreira Lins"
 date: "`r paste('Atualizado no dia', format(Sys.Date(), '%d de %B de %Y'))`"
 output: 
   html_document:
-    css: "assets/style.css"
+    css: "style.css"
     toc: true
     number_sections: true
     toc_float:

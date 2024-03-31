@@ -4,7 +4,7 @@ library(randomForest)
 library(naivebayes)
 library(plotly)
 
-source("scripts/texts.R")
+source("src/texts.R")
 
 #### Carregando dados ####
 #========================#
