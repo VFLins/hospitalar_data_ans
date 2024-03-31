@@ -4,7 +4,7 @@ author: "Vitor Ferreira Lins"
 date: "`r paste('Atualizado no dia', format(Sys.Date(), '%d de %B de %Y'))`"
 output: 
   html_document:
-    css: "style/document.css"
+    css: "assets/style.css"
     toc: true
     number_sections: true
     toc_float:
@@ -35,9 +35,9 @@ library(plotly)
 library(MLmetrics)
 set_flextable_defaults(scroll=list())
 
-source("scripts/functions.R")
-source("scripts/texts.R")
-source("scripts/setup.R")
+source("src/functions.R")
+source("src/texts.R")
+source("src/setup.R")
 ```
 
 # Introdução
