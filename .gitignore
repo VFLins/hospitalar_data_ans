@@ -43,6 +43,14 @@ vignettes/*.pdf
 *.sqlite
 *.db
 
+# Python and R environment
+/renv/
+/envs/
+/.venv/
+/venv/
+/env/
+/pyenv/
+
 # python cahche files
 */__pycache__/
 *.pyc

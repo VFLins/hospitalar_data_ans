@@ -167,6 +167,21 @@ pre {
 
 .nav-tabs {
     border-bottom: 1px solid #976969;
+    font-size: large;
+}
+
+center {
+    font-size: large;
+}
+
+ol {
+    font-size: larger;
+}
+
+.nav-tabs>li.active>a, .nav-tabs>li.active>a:focus, .nav-tabs>li.active>a:hover {
+    color: #ad8b8b;
+    border-bottom-color: #121212;
+    background-color: #ffffff00
 }
 
 .nav-pills>li>a {
@@ -193,6 +208,10 @@ pre {
     font-size: 4rem;
     font-weight: bold;
     transition: color .15s ease-in-out
+}
+
+.bslib-value-box .value-box-area>:nth-child(2):hover[href]{
+    color:#c99696;
 }
 
 .bslib-card .card-body p{
