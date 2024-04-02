@@ -2,9 +2,10 @@
 title: "Análise dos dados da PDA TISS 2019"
 author: "Vitor Ferreira Lins"
 date: "`r paste('Atualizado no dia', format(Sys.Date(), '%d de %B de %Y'))`"
+params:
+  css_file: assets/style.css
 output: 
   html_document:
-    css: "style.css"
     toc: true
     number_sections: true
     toc_float:
@@ -38,6 +39,11 @@ set_flextable_defaults(scroll=list())
 source("src/functions.R")
 source("src/texts.R")
 source("src/setup.R")
+```
+
+
+```{css, code = readLines(params$css_file), echo=FALSE}
+
 ```
 
 # Introdução
