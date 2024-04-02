@@ -1,6 +1,6 @@
 @font-face {
   font-family: Bookman;
-  src: url(bookman.ttf);
+  src: url(assets/bookman.ttf);
 }
 
 body {
@@ -39,10 +39,17 @@ h4 {
 }
 
 p {
-    font-size: 20px;
+    font-size: 17px;
 	margin: 0 0 15px 0;
-	text-align: justify;
 	text-justify: inter-word;
+}
+
+ul {
+    font-size: 17px;
+}
+
+ol {
+    font-size: 17px;
 }
 
 a {
