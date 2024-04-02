@@ -38,13 +38,13 @@ Em 2024 este projeto recebeu um upgrade para torná-lo mais realista e completo,
 
 Sinta-se livre para navegar entre os materiais relevantes abaixo!
 
-## Main
+## Original
 
 ```{r vbs_main, echo = FALSE}
 value_boxes <- list(
     value_box(
         title = "1ª Etapa",
-        value = HTML("<a href='https://github.com/VFLins/hospitalar_data-pda-tiss/blob/main/collector_saude-pda-tiss-hosp-2019.py'>Coleta de dados</a>"),
+        value = HTML("<a href='https://github.com/VFLins/hospitalar_data_ans/blob/main/src/collector_saude-pda-tiss-hosp-2019.py'>Coleta de dados</a>"),
         showcase = bs_icon("database-fill-down"),
         fill = FALSE,
         p("ETL (Extract, Transform, Load) nos dados da Troca de Informações da Saúde Suplementar (TISS) no período de 2019. Os dados estão presentes em servidores FTP e foram coletados e armazenados localmente em um banco de dados relacional.")
@@ -71,7 +71,7 @@ layout_column_wrap(
 value_boxes <- list(
     value_box(
         title = "1ª Etapa",
-        value = HTML("<a href='https://github.com/VFLins/hospitalar_data_ans/blob/remake/notebooks/collect_routine_ans.ipynb'>Coleta de dados</a>"),
+        value = HTML("<a href='https://github.com/VFLins/hospitalar_data_ans/blob/main/notebooks/collect_routine_ans.ipynb'>Coleta de dados</a>"),
         showcase = bs_icon("database-fill-down"),
         fill = FALSE,
         p("Dados coletados a partir do servidor FTP oficial, múltiplos arquivos .zip foram baixados e extraídos localmente, e em seguida armazenado em um Data Warehouse na nuvem.")
