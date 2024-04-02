@@ -1,9 +1,7 @@
 ---
-title: "Prevendo acionamentos de seguro de Saúde"
-author: "Vitor Ferreira Lins"
-output: 
-    html_document:
-        css: "assets/style.css"
+params:
+  css_file: assets/style.css
+output: html_document
 ---
 
 ```{r setup, include=FALSE}
@@ -13,10 +11,19 @@ library(htmltools)
 library(bsicons)
 ```
 
+```{css, code = readLines(params$css_file), echo=FALSE}
+
+```
+
 ----------
 
 ![](assets/gh_banner-hospitalar-data-ans.png)
 
+Projeto de Ciência de dados com o objetivo de abrangir todas as etapas do papel de um cientista de dados!
+
+Aqui vamos seguir toda a *pipeline* de um projeto de dados, desde a extração até a entrega de um modelo com valor de negócios, voltado para o setor de saúde, por [Vitor Ferreira Lins](https://sites.google.com/view/vflins/sobre-mim).
+
+----------
 
 # Que dados estamos usando?
 
@@ -24,7 +31,7 @@ A **Agência Nacional de Saúde Suplementar (ANS)** é responsável por regular 
 
 O PDA possui dados para internações e procedimentos hospitalares e ambulatoriais, mas nesta análise serão tratados apenas os dados de origem hospitalar. A análise realizada aqui é feita a partir de um recorte aleatório de dados do **Padrão para Troca de Informação de Saúde Suplementar (TISS)** para todos os estados do Brasil, mas apenas ao longo do ano de 2019.
 
-# Qual é o objetivo? {.tabset}
+# Qual é o objetivo?
 
 Este projeto foi desenvolvido de 2021 à 2022 com o *objetivo inicial* obter dados hospitalares de 2021 da ANS e desenvolver:
 
@@ -38,73 +45,96 @@ Em 2024 este projeto recebeu um upgrade para torná-lo mais realista e completo,
 
 Sinta-se livre para navegar entre os materiais relevantes abaixo!
 
-## Original
+```{r vbs_remake, echo = FALSE}
+default_vb_theme <- value_box_theme(bg = "#BF4B4B", fg = "#F5F5F5")
 
-```{r vbs_main, echo = FALSE}
-value_boxes <- list(
+value_boxes_orig <- list(
     value_box(
         title = "1ª Etapa",
         value = HTML("<a href='https://github.com/VFLins/hospitalar_data_ans/blob/main/src/collector_saude-pda-tiss-hosp-2019.py'>Coleta de dados</a>"),
         showcase = bs_icon("database-fill-down"),
         fill = FALSE,
+        theme = default_vb_theme,
         p("ETL (Extract, Transform, Load) nos dados da Troca de Informações da Saúde Suplementar (TISS) no período de 2019. Os dados estão presentes em servidores FTP e foram coletados e armazenados localmente em um banco de dados relacional.")
     ),
 
+    HTML("<br />"),
+
     value_box(
         title = "2ª Etapa",
-        value = HTML("<a href='https://vflins.github.io/hospitalar_data_ans/eda.html'>EDA e Modelagem</a>"),
-        showcase = bs_icon("code-square"),
+        value = HTML("<a href='https://vflins.github.io/hospitalar_data_ans/pages/eda.html'>Análise exploratória de dados</a>"),
+        showcase = bs_icon("search"),
         fill = FALSE,
-        p("Análise Exploratória entendendo o comportamento das variáveis disponíveis. A partir disto pudemos desenvolver uma solução de Machine Learning com valor de negócio.")
+        theme = default_vb_theme,
+        p("Análise Exploratória entendendo o comportamento das variáveis disponíveis no conjunto de dados.")
+    ),
+
+    HTML("<br />"),
+
+    value_box(
+        title = "3ª Etapa",
+        value = HTML("<a href='https://vflins.github.io/hospitalar_data_ans/pages/modelling_original.html'>Modelagem e testes</a>"),
+        showcase = bs_icon("journal-text"),
+        fill = FALSE,
+        theme = default_vb_theme,
+        p("Definição de uma variável-alvo com valor de negócio para operadores de saúde, além da seleção do modelo e das variáveis preditivas.")
     )
 )
 
-layout_column_wrap(
-  width = "100%",
-  card(!!!value_boxes)
-)
-```
-
-## Remake
-
-```{r vbs_remake, echo = FALSE}
-value_boxes <- list(
+value_boxes_remake <- list(
     value_box(
         title = "1ª Etapa",
         value = HTML("<a href='https://github.com/VFLins/hospitalar_data_ans/blob/main/notebooks/collect_routine_ans.ipynb'>Coleta de dados</a>"),
         showcase = bs_icon("database-fill-down"),
         fill = FALSE,
+        theme = default_vb_theme,
         p("Dados coletados a partir do servidor FTP oficial, múltiplos arquivos .zip foram baixados e extraídos localmente, e em seguida armazenado em um Data Warehouse na nuvem.")
     ),
 
+    HTML("<br />"),
+
     value_box(
-        title = "2ª Etapa",
-        value = "EDA e Modelagem",
-        showcase = bs_icon("code-square"),
+        title = "2ª Etapa (Sem alteração)",
+        value = "Análise exploratória de dados",
+        showcase = bs_icon("search"),
         fill = FALSE,
-        p("Análise Exploratória entendendo o comportamento das variáveis disponíveis. A partir disto pudemos desenvolver e avaliar uma solução de Machine Learning com valor de negócio.")
+        theme = value_box_theme(
+            bg = "#242424",
+            fg = "#696969"
+        ),
+        p("Considerando esta etapa satisfatória no projeto original, vamos mantê-la inalterada.")
     ),
+
+    HTML("<br />"),
 
     value_box(
         title = "3ª Etapa",
         value = "Teste do modelo",
         showcase = bs_icon("check2-square"),
         fill = FALSE,
+        theme = default_vb_theme,
         p("Testar o modelo ajustado com a amostra no conjunto de dados mais abrangente e tirar conclusões sobre a sua performance.")
     ),
+
+    HTML("<br />"),
 
     value_box(
         title = "4ª Etapa",
         value = "Apresentação executiva",
         showcase = bs_icon("file-earmark-slides"),
         fill = FALSE,
+        theme = default_vb_theme,
         p("Apresentação de resultados e conquista para stakeholders relevantes para a solução desenvolvida.")
     )
 )
 
 layout_column_wrap(
-  width = "100%",
-  card(!!!value_boxes)
+    width = "100%",
+    navset_card_tab(
+        nav_panel(title = "Original", card(!!!value_boxes_orig)),
+        nav_panel(title = "Remake", card(!!!value_boxes_remake)),
+  )
+  
 )
 ```
 
