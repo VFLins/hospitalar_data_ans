@@ -53,18 +53,18 @@ ol {
 }
 
 a {
-    color: #c99696;
+    color: #ff9f9f;
     font-size: inherit;
     transition: color .15s ease-in-out
 }
 
 a:hover {
-    color: #bf7878;
+    color: #ffc9c9;
     text-decoration: none;
 }
 
 a:focus, a:hover {
-	color: #bf7878;
+	color: #ffc9c9;
 }
 
 ::marker {
@@ -136,7 +136,7 @@ pre {
 	    border-right-color: transparent;
 	    border-right-style: solid;
 	    border-right-width: 1px;
-	    border-bottom-color: #976969;
+	    border-bottom-color: #ff9f9f;
 	    border-bottom-style: solid;
 	    border-bottom-width: 1px;
 	    border-left-color: transparent;
@@ -153,10 +153,10 @@ pre {
 	 color: #B66868;
     cursor: default;
     background-color: #332C2C;
-    border: 1px solid #976969;
+    border: 1px solid #ff9f9f;
 	    border-top-color: transparent;
 	    border-right-color: transparent;
-	    border-bottom-color: #976969;
+	    border-bottom-color: #ff9f9f;
 	    border-left-color: transparent;
 }
 
@@ -164,16 +164,16 @@ pre {
 	color: #c2c2c2;
 	cursor: default;
 	background-color: #272727;
-	border: 1px solid #976969;
-		border-top-color: #976969;
-		border-right-color: #976969;
+	border: 1px solid #ff9f9f;
+		border-top-color: #ff9f9f;
+		border-right-color: #ff9f9f;
 		border-bottom-color: transparent;
-		border-left-color: #976969;
+		border-left-color: #ff9f9f;
 	
 }
 
 .nav-tabs {
-    border-bottom: 1px solid #976969;
+    border-bottom: 1px solid #ff9f9f;
     font-size: large;
 }
 
@@ -186,7 +186,7 @@ ol {
 }
 
 .nav-tabs>li.active>a, .nav-tabs>li.active>a:focus, .nav-tabs>li.active>a:hover {
-    color: #ad8b8b;
+    color: #ff9f9f;
     border-bottom-color: #121212;
     background-color: #ffffff00
 }
@@ -218,7 +218,7 @@ ol {
 }
 
 .bslib-value-box .value-box-area>:nth-child(2):hover[href]{
-    color:#c99696;
+    color:#ff9f9f;
 }
 
 .bslib-card .card-body p{
@@ -231,14 +231,12 @@ ol {
     padding: 5px;
 }
 
-.bslib-value-box .value-box-grid {
-    background-color: #8a332c;
-}
-
 .bslib-value-box.default {
 	background-color: #121212;
 }
 
+
 .bg-primary{
     background-color: #121212;
 }
+
