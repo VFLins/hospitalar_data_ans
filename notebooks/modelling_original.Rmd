@@ -2,9 +2,10 @@
 title: "Análise dos dados da PDA TISS 2019"
 author: "Vitor Ferreira Lins"
 date: "`r paste('Atualizado no dia', format(Sys.Date(), '%d de %B de %Y'))`"
+params:
+  css_file: assets/style.css
 output: 
   html_document:
-    css: "assets/document.css"
     toc: true
     number_sections: true
     toc_float:
@@ -35,9 +36,41 @@ library(plotly)
 library(MLmetrics)
 set_flextable_defaults(scroll=list())
 
-source("scripts/functions.R")
-source("scripts/texts.R")
-source("scripts/setup.R")
+source("src/functions.R")
+source("src/texts.R")
+source("src/setup.R")
+```
+
+
+```{css, code = readLines(params$css_file), echo=FALSE}
+
+```
+
+```{r DADOS, echo=FALSE}
+# tabela unificada
+df <- readRDS("data/pda_tiss_hosp_mini.rds")
+
+# corrigindo valores ausentes
+temp <- df[, c("VL_ITEM_EVENTO_INFORMADO", "VL_ITEM_PAGO_FORNECEDOR")]
+temp[is.na(temp)] <- 0
+df[, c("VL_ITEM_EVENTO_INFORMADO", "VL_ITEM_PAGO_FORNECEDOR")] <- temp
+
+# dados com variaveis numericas de interesse agregadas por ocorrencia
+aggnum_df <- df[,c(id_var, numeric_vars)] %>% 
+	group_by(ID_EVENTO_ATENCAO_SAUDE) %>% 
+	summarise(
+		VL_TOTAL_ITENS_INFORMADOS=sum(QT_ITEM_EVENTO_INFORMADO*VL_ITEM_EVENTO_INFORMADO),
+		VL_ITEM_PAGO_FORNECEDOR=sum(VL_ITEM_PAGO_FORNECEDOR),
+		TEMPO_DE_PERMANENCIA=max(TEMPO_DE_PERMANENCIA))
+
+# dados com variaveis categoricas de interesse agregadas por ocorrencia
+aggcat_df <-  df[,c(id_var, categorical_vars)] %>% 
+	group_by(ID_EVENTO_ATENCAO_SAUDE) %>%
+	summarise_at(categorical_vars, max) %>%
+	mutate(ANO_MES_EVENTO=zoo::as.yearmon(ANO_MES_EVENTO))
+
+# tabela agregada
+agg_df <- inner_join(aggcat_df, aggnum_df, by="ID_EVENTO_ATENCAO_SAUDE")
 ```
 
 # Introdução
