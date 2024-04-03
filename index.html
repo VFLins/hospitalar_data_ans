@@ -11,7 +11,7 @@
 
 
 
-<title>index.knit</title>
+<title>Dados hospitalares da saúde suplementar</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -727,6 +727,8 @@ display: none;
 
 
 
+<h1 class="title toc-ignore">Dados hospitalares da saúde
+suplementar</h1>
 
 </div>
 
@@ -941,8 +943,9 @@ Lins</a>.</p>
 <div id="que-dados-estamos-usando" class="section level1">
 <h1>Que dados estamos usando?</h1>
 <p>A <strong>Agência Nacional de Saúde Suplementar (ANS)</strong> é
-responsável por regular os planos de saúde no Brasil. Esta agência
-iniciou o <strong>Plano de Dados abertos (PDA)</strong>, que consiste em
+responsável por regular as <strong><em>operadoras de saúde</em></strong>
+(empresas que oferecem planos e seguros de saúde). Esta agência iniciou
+o <strong>Plano de Dados abertos (PDA)</strong>, que consiste em
 solicitar dados para divulgação pública com diversos propósitos, desde o
 acesso à informação por parte do público como também para ajudar na
 regulação por parte do próprio órgão.</p>
@@ -953,40 +956,59 @@ recorte aleatório de dados do <strong>Padrão para Troca de Informação de
 Saúde Suplementar (TISS)</strong> para todos os estados do Brasil, mas
 apenas ao longo do ano de 2019.</p>
 </div>
-<div id="qual-é-o-objetivo" class="section level1">
-<h1>Qual é o objetivo?</h1>
+<div id="quem-seria-beneficiado-por-esta-solução" class="section level1">
+<h1>Quem seria beneficiado por esta solução?</h1>
+<p>Este conjunto de dados oferece informações pertinentes às próprias
+<strong>operadoras de saúde</strong>, a base contém informações
+anonimizadas sobre:</p>
+<ul>
+<li>Os clientes;</li>
+<li>As operadoras;</li>
+<li>O serviço hospitalar.</li>
+</ul>
+<p>Entre as variáveis disponíveis, as que podem oferecer mais valor são
+a 1- <em>classificação CID da doença</em> e 2- o <em>valor pago pela
+operadora</em>.</p>
+<p>Fazendo o cruzamento com outro conjunto de dados, esta primeira pode
+ajudar um hospital a decidir que tipo de equipamentos e profissionais
+seriam mais necessários em sua região. Já com a segunda, podemos usar os
+dados já disponíveis para produzir um modelo que ajude a antecipar o
+custo de aquisição de um determinado cliente.</p>
+<p>Como neste projeto não vamos cruzar a base de dados com nenhuma outra
+fonte externa, este projeto tem o foco em produzir uma solução para
+operadoras de saúde.</p>
+</div>
+<div id="qual-é-o-objetivo-deste-projeto" class="section level1">
+<h1>Qual é o objetivo deste projeto?</h1>
 <p>Este projeto foi desenvolvido de 2021 à 2022 com o <em>objetivo
-inicial</em> obter dados hospitalares de 2021 da ANS e desenvolver:</p>
-<ol style="list-style-type: decimal">
-<li>uma análise e;</li>
-<li>um modelo de previsão de acionamentos de seguros.</li>
-</ol>
+inicial</em> obter dados hospitalares de 2021 da ANS e desenvolver uma
+análise e um modelo de previsão de acionamentos de seguros.</p>
 <p>Em 2024 este projeto recebeu um upgrade para torná-lo mais realista e
 completo, usando tecnologias mais avançadas e aplicando novos
-conhecimentos de análise e modelagem que adquiri durante este tempo.
-Além de aplicar novos conhecimentos, outro objetivo deste
+conhecimentos de análise e modelagem que adquiri durante este tempo.</p>
+<p>Além de aplicar novos conhecimentos, outro objetivo deste
 <em>remake</em> é abordar mais dos âmbitos da profissão de Cientista de
 Dados, adicionanado outras etapas posteriores às apresentadas antes:</p>
-<ol start="3" style="list-style-type: decimal">
+<ul>
 <li>Avaliar e acompanhar o desempenho do modelo com novos dados</li>
 <li>Apresentação dos resultados</li>
-</ol>
+</ul>
 <p>Sinta-se livre para navegar entre os materiais relevantes abaixo!</p>
 <div class="bslib-grid bslib-mb-spacing html-fill-item" data-require-bs-caller="layout_column_wrap()" data-require-bs-version="5" style="grid-template-columns:repeat(auto-fit, minmax(min(100%, 100%), 1fr));grid-auto-rows:1fr;--bslib-grid-height:auto;--bslib-grid-height-mobile:auto;">
 <div class="bslib-grid-item bslib-gap-spacing html-fill-container">
 <div class="card bslib-card bslib-mb-spacing html-fill-item html-fill-container" data-bslib-card-init data-require-bs-caller="card()" data-require-bs-version="5">
 <div class="card-header">
-<ul class="nav nav-tabs card-header-tabs" data-tabsetid="5394">
+<ul class="nav nav-tabs card-header-tabs" data-tabsetid="6324">
 <li class="active">
-<a href="#tab-5394-1" data-toggle="tab" data-bs-toggle="tab" data-value="Original">Original</a>
+<a href="#tab-6324-1" data-toggle="tab" data-bs-toggle="tab" data-value="Original">Original</a>
 </li>
 <li>
-<a href="#tab-5394-2" data-toggle="tab" data-bs-toggle="tab" data-value="Remake">Remake</a>
+<a href="#tab-6324-2" data-toggle="tab" data-bs-toggle="tab" data-value="Remake">Remake</a>
 </li>
 </ul>
 </div>
-<div class="tab-content html-fill-item html-fill-container" data-tabsetid="5394">
-<div class="tab-pane active html-fill-item html-fill-container bslib-gap-spacing" data-value="Original" id="tab-5394-1" style="gap:0;padding:0;">
+<div class="tab-content html-fill-item html-fill-container" data-tabsetid="6324">
+<div class="tab-pane active html-fill-item html-fill-container bslib-gap-spacing" data-value="Original" id="tab-6324-1" style="gap:0;padding:0;">
 <div class="card-body bslib-gap-spacing html-fill-item html-fill-container" style="margin-top:auto;margin-bottom:auto;flex:1 1 auto;">
 <div class="card bslib-card bslib-mb-spacing html-fill-item html-fill-container" data-bslib-card-init data-require-bs-caller="card()" data-require-bs-version="5">
 <div class="card-body bslib-gap-spacing html-fill-item html-fill-container" style="margin-top:auto;margin-bottom:auto;flex:1 1 auto;">
@@ -1039,7 +1061,7 @@ Dados, adicionanado outras etapas posteriores às apresentadas antes:</p>
 </div>
 </div>
 </div>
-<div class="tab-pane html-fill-item html-fill-container bslib-gap-spacing" data-value="Remake" id="tab-5394-2" style="gap:0;padding:0;">
+<div class="tab-pane html-fill-item html-fill-container bslib-gap-spacing" data-value="Remake" id="tab-6324-2" style="gap:0;padding:0;">
 <div class="card-body bslib-gap-spacing html-fill-item html-fill-container" style="margin-top:auto;margin-bottom:auto;flex:1 1 auto;">
 <div class="card bslib-card bslib-mb-spacing html-fill-item html-fill-container" data-bslib-card-init data-require-bs-caller="card()" data-require-bs-version="5">
 <div class="card-body bslib-gap-spacing html-fill-item html-fill-container" style="margin-top:auto;margin-bottom:auto;flex:1 1 auto;">

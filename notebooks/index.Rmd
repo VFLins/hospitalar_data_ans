@@ -1,4 +1,5 @@
 ---
+title: "Dados hospitalares da saúde suplementar"
 params:
   css_file: assets/style.css
 output: html_document
@@ -27,21 +28,34 @@ Aqui vamos seguir toda a *pipeline* de um projeto de dados, desde a extração a
 
 # Que dados estamos usando?
 
-A **Agência Nacional de Saúde Suplementar (ANS)** é responsável por regular os planos de saúde no Brasil. Esta agência iniciou o **Plano de Dados abertos (PDA)**, que consiste em solicitar dados para divulgação pública com diversos propósitos, desde o acesso à informação por parte do público como também para ajudar na regulação por parte do próprio órgão.
+A **Agência Nacional de Saúde Suplementar (ANS)** é responsável por regular as ***operadoras de saúde*** (empresas que oferecem planos e seguros de saúde). Esta agência iniciou o **Plano de Dados abertos (PDA)**, que consiste em solicitar dados para divulgação pública com diversos propósitos, desde o acesso à informação por parte do público como também para ajudar na regulação por parte do próprio órgão.
 
 O PDA possui dados para internações e procedimentos hospitalares e ambulatoriais, mas nesta análise serão tratados apenas os dados de origem hospitalar. A análise realizada aqui é feita a partir de um recorte aleatório de dados do **Padrão para Troca de Informação de Saúde Suplementar (TISS)** para todos os estados do Brasil, mas apenas ao longo do ano de 2019.
 
-# Qual é o objetivo?
+# Quem seria beneficiado por esta solução?
 
-Este projeto foi desenvolvido de 2021 à 2022 com o *objetivo inicial* obter dados hospitalares de 2021 da ANS e desenvolver:
+Este conjunto de dados oferece informações pertinentes às próprias **operadoras de saúde**, a base contém informações anonimizadas sobre:
 
-1. uma análise e;
-2. um modelo de previsão de acionamentos de seguros.
+- Os clientes;
+- As operadoras;
+- O serviço hospitalar.
 
-Em 2024 este projeto recebeu um upgrade para torná-lo mais realista e completo, usando tecnologias mais avançadas e aplicando novos conhecimentos de análise e modelagem que adquiri durante este tempo. Além de aplicar novos conhecimentos, outro objetivo deste *remake* é abordar mais dos âmbitos da profissão de Cientista de Dados, adicionanado outras etapas posteriores às apresentadas antes:
+Entre as variáveis disponíveis, as que podem oferecer mais valor são a 1- *classificação CID da doença* e 2- o *valor pago pela operadora*.
 
-3. Avaliar e acompanhar o desempenho do modelo com novos dados
-4. Apresentação dos resultados
+Fazendo o cruzamento com outro conjunto de dados, esta primeira pode ajudar um hospital a decidir que tipo de equipamentos e profissionais seriam mais necessários em sua região. Já com a segunda, podemos usar os dados já disponíveis para produzir um modelo que ajude a antecipar o custo de aquisição de um determinado cliente.
+
+Como neste projeto não vamos cruzar a base de dados com nenhuma outra fonte externa, este projeto tem o foco em produzir uma solução para operadoras de saúde.
+
+# Qual é o objetivo deste projeto?
+
+Este projeto foi desenvolvido de 2021 à 2022 com o *objetivo inicial* obter dados hospitalares de 2021 da ANS e desenvolver uma análise e um modelo de previsão de acionamentos de seguros.
+
+Em 2024 este projeto recebeu um upgrade para torná-lo mais realista e completo, usando tecnologias mais avançadas e aplicando novos conhecimentos de análise e modelagem que adquiri durante este tempo.
+
+Além de aplicar novos conhecimentos, outro objetivo deste *remake* é abordar mais dos âmbitos da profissão de Cientista de Dados, adicionanado outras etapas posteriores às apresentadas antes:
+
+- Avaliar e acompanhar o desempenho do modelo com novos dados
+- Apresentação dos resultados
 
 Sinta-se livre para navegar entre os materiais relevantes abaixo!
 
